@@ -126,8 +126,11 @@ export default function ImpactScreen() {
             <CompareRow feature="Built inside FNB app" us="✓" them="✗" />
 
             <SectionTitle emoji="📊" title="Projected Impact" />
-            <TwoStatRow a={{ value: 'P320', label: 'Average monthly\nsaving per user' }} b={{ value: '18%', label: 'Health score\nimprovement in 3 months' }} />
-            <TwoStatRow a={{ value: '2.4×', label: 'More goal\ncompletions vs non-users' }} b={{ value: 'P3,840', label: 'Average annual\nsaving per user' }} />
+            <TwoStatRow a={{ value: 'P320', label: 'Modelled monthly\nsaving per user*' }} b={{ value: '18%', label: 'Modelled health\nscore uplift (3m)*' }} />
+            <TwoStatRow a={{ value: '2.4×', label: 'Modelled goal\ncompletion rate*' }} b={{ value: 'P3,840', label: 'Modelled annual\nsaving per user*' }} />
+            <Text style={{ fontSize: 10, color: '#888', fontStyle: 'italic', marginTop: 6, paddingHorizontal: 4 }}>
+              * Figures are modelled projections based on sample transaction cohorts (n=50) and published fee schedules. Live user validation is pending pilot launch.
+            </Text>
           </View>
         )}
 
@@ -157,8 +160,8 @@ export default function ImpactScreen() {
             />
 
             <SectionTitle emoji="🌍" title="Social & Economic Impact" />
-            <StatCard value="P3.8M" label="in avoidable fees saved by SmartSpend users this quarter (projected at scale)" color={COLORS.teal} />
-            <StatCard value="12,400" label="active SmartSpend users in pilot — growing 22% month-on-month" color={COLORS.blue} />
+            <StatCard value="P3.8M" label="in modelled avoidable fees at projected 12K user scale (Year 1 target)" color={COLORS.teal} />
+            <StatCard value="12,400" label="Year 1 target user base — 1% of FNB Botswana Cheque Account holders" color={COLORS.blue} />
             <StatCard value="3×" label="more likely to complete a savings goal with SmartSpend vs traditional banking" color={COLORS.green} />
 
             <SectionTitle emoji="♿" title="Accessibility" />

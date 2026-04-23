@@ -78,6 +78,24 @@ const PRINCIPLES = [
     status: 'Enforced',
     statusColor: THEME.success,
   },
+  {
+    icon: '🆔',
+    title: 'Know Your Customer (KYC)',
+    badge: 'FATF · Bank of Botswana',
+    badgeColor: THEME.info,
+    desc: 'User identity is verified at onboarding through FNB\'s existing KYC pipeline (Omang ID + biometric). SmartSpend inherits verified customer status — no parallel KYC database is maintained, minimising PII exposure.',
+    status: 'Inherited',
+    statusColor: THEME.success,
+  },
+  {
+    icon: '🕵️',
+    title: 'Anti-Money Laundering (AML)',
+    badge: 'FIA Botswana · FATF 40',
+    badgeColor: THEME.warning,
+    desc: 'Transaction pattern monitoring flags structuring, rapid cash movements, and unusual cross-border activity. Suspicious Transaction Reports (STRs) are escalated to FNB\'s compliance team. SmartSpend itself holds no funds — all AML obligations rest with the regulated banking partner.',
+    status: 'Monitored',
+    statusColor: THEME.success,
+  },
 ];
 
 export default function Security() {

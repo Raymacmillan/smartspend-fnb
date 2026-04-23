@@ -201,6 +201,42 @@ export default function Architecture() {
           </Text>
         </View>
 
+        <Text style={[styles.sectionLabel, { marginTop: 16 }]}>SAMPLE API INTEGRATION</Text>
+        <View style={styles.apiCard}>
+          <View style={styles.apiRow}>
+            <View style={[styles.methodBadge, { backgroundColor: THEME.success }]}>
+              <Text style={styles.methodTxt}>GET</Text>
+            </View>
+            <Text style={styles.endpointTxt}>/v1/accounts/{'{id}'}/transactions</Text>
+          </View>
+          <Text style={styles.apiLabel}>Request Headers</Text>
+          <View style={styles.codeBlock}>
+            <Text style={styles.codeLine}><Text style={styles.codeKey}>Authorization:</Text> Bearer eyJhbGc...</Text>
+            <Text style={styles.codeLine}><Text style={styles.codeKey}>X-Consent-Token:</Text> analytics-v2</Text>
+            <Text style={styles.codeLine}><Text style={styles.codeKey}>X-Request-ID:</Text> uuid-v4</Text>
+          </View>
+          <Text style={styles.apiLabel}>Response (minimised)</Text>
+          <View style={styles.codeBlock}>
+            <Text style={styles.codeLine}><Text style={styles.codeBracket}>{'{'}</Text></Text>
+            <Text style={styles.codeLine}>  <Text style={styles.codeKey}>"category":</Text> <Text style={styles.codeStr}>"dining"</Text>,</Text>
+            <Text style={styles.codeLine}>  <Text style={styles.codeKey}>"amount":</Text> <Text style={styles.codeNum}>85.00</Text>,</Text>
+            <Text style={styles.codeLine}>  <Text style={styles.codeKey}>"date":</Text> <Text style={styles.codeStr}>"2025-03-03"</Text>,</Text>
+            <Text style={styles.codeLine}>  <Text style={styles.codeKey}>"merchant_hash":</Text> <Text style={styles.codeStr}>"a1f3..."</Text></Text>
+            <Text style={styles.codeLine}><Text style={styles.codeBracket}>{'}'}</Text></Text>
+          </View>
+          <Text style={styles.apiNote}>
+            🛡️ Raw merchant name, card number, and geolocation are stripped at the API gateway.
+            Only categorised, hashed data reaches the analytics layer.
+          </Text>
+          <View style={styles.stackRow}>
+            {['OAuth 2.0', 'JWT (15min)', 'mTLS', 'Rate Limit 60/min', 'Cert Pinning'].map((t) => (
+              <View key={t} style={styles.stackTag}>
+                <Text style={styles.stackTagTxt}>{t}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
@@ -254,4 +290,20 @@ const styles = StyleSheet.create({
   dataFlowStep: { backgroundColor: '#ffffff15', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, color: THEME.primary, fontSize: 10, fontWeight: '700' },
   dataFlowArrow: { color: THEME.textLight, fontSize: 14 },
   dataFlowNote: { fontSize: 10, color: THEME.textLight, lineHeight: 16 },
+  apiCard: { backgroundColor: THEME.card, borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  apiRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  methodBadge: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3 },
+  methodTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  endpointTxt: { fontSize: 11, fontWeight: '700', color: THEME.text, fontFamily: 'monospace' },
+  apiLabel: { fontSize: 9, color: THEME.textLight, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6, marginTop: 4 },
+  codeBlock: { backgroundColor: THEME.dark, borderRadius: 8, padding: 10, marginBottom: 10 },
+  codeLine: { color: THEME.textLight, fontSize: 10, fontFamily: 'monospace', lineHeight: 16 },
+  codeKey: { color: THEME.info },
+  codeStr: { color: THEME.success },
+  codeNum: { color: THEME.warning },
+  codeBracket: { color: THEME.primary },
+  apiNote: { fontSize: 10, color: THEME.textSub, lineHeight: 15, marginBottom: 10 },
+  stackRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  stackTag: { backgroundColor: THEME.primaryFade, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  stackTagTxt: { color: THEME.primaryDark, fontSize: 9, fontWeight: '700' },
 });
