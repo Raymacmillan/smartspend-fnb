@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
@@ -12,9 +12,50 @@ export default function Recommendations() {
   const router = useRouter();
   const { state } = useStore();
   const { currentMonth, transactions } = state;
-  const m = transactions[currentMonth];
-  const recs = generateRecommendations(m.categories);
-  const totalSaving = recs.reduce((s, r) => s + r.savingRaw, 0);
+  const m = transactions && currentMonth ? transactions[currentMonth] : null;
+
+  const [recs, setRecs] = useState([]);
+  const [totalSaving, setTotalSaving] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecs = async () => {
+      if (m && m.categories) {
+        try {
+          const fetchedRecs = await generateRecommendations(m.categories);
+          setRecs(fetchedRecs || []);
+          const saving = (fetchedRecs || []).reduce((sum, r) => {
+            const val = Number(String(r.saving).replace(/[^0-9.-]+/g, ""));
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+          setTotalSaving(saving);
+        } catch (error) {
+          console.error('Failed to generate recommendations:', error);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchRecs();
+  }, [m]);
+
+  if (!m) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+            <Text style={styles.backTxt}>‹</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Smart Recommendations</Text>
+          </View>
+        </View>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTxt}>No data available for this month.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -41,15 +82,16 @@ export default function Recommendations() {
           </View>
         </View>
 
-        {recs.length === 0 && (
+        {loading ? (
+          <ActivityIndicator color={THEME.primary} style={{ marginTop: 20 }} />
+        ) : recs.length === 0 ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="party-popper" size={48} color={THEME.textSub} style={{ marginBottom: 10 }} />
             <Text style={styles.emptyTitle}>Great spending habits!</Text>
             <Text style={styles.emptyTxt}>No significant optimisation opportunities found for {m.label}. Keep it up.</Text>
           </View>
-        )}
-
-        {recs.map((rec) => (
+        ) : (
+          recs.map((rec) => (
           <View key={rec.id} style={[styles.recCard, { borderLeftColor: rec.severity === 'high' ? THEME.danger : THEME.warning }]}>
             <View style={styles.recTop}>
               <View style={[styles.severityBadge, { backgroundColor: rec.severity === 'high' ? THEME.dangerFade : THEME.warningFade, flexDirection: 'row', alignItems: 'center' }]}>
@@ -83,7 +125,8 @@ export default function Recommendations() {
               </View>
             </View>
           </View>
-        ))}
+          ))
+        )}
 
         <View style={styles.disclaimer}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>

@@ -10,11 +10,7 @@ const initialState = {
   // Data
   currentMonth: 'mar',
   transactions: SAMPLE_TRANSACTIONS,
-  goals: [
-    { id: 1, name: 'China Trip', target: 10000, saved: 1800, deadline: 'December 2025' },
-    { id: 2, name: 'Emergency Fund', target: 15000, saved: 3500, deadline: 'June 2026' },
-    { id: 3, name: 'New Laptop', target: 8000, saved: 2000, deadline: 'September 2025' },
-  ],
+  goals: [],
   user: { name: 'Keabetswe', account: '**** 4821', tier: 'Cheque Account' },
 
   // Privacy & consent

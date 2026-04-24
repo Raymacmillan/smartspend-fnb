@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import THEME from '../../src/constants/theme';
 import { auth, db } from '../../src/services/firebase/config';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, addDoc, updateDoc, collection, Timestamp } from 'firebase/firestore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const DEADLINES = ['June 2026', 'September 2026', 'December 2026', 'March 2027', 'June 2027', 'December 2027'];
@@ -46,25 +46,26 @@ export default function AddGoal() {
     if (isNaN(Number(saved)) || Number(saved) < 0) { setError('Current savings must be 0 or more.'); return; }
     if (Number(saved) > Number(target)) { setError('Saved amount cannot exceed the target.'); return; }
 
-    const goalId = id || Date.now().toString();
-
     const goalData = {
-      id: goalId,
       name: name.trim(),
-      title: name.trim(), // Support dual schema mappings
+      title: name.trim(),
       target: Number(target),
       saved: Number(saved),
-      current: Number(saved), // Support dual schema mappings
+      current: Number(saved),
       deadline,
       icon,
-      color: THEME.primary,
-      updatedAt: Timestamp.now()
+      color: THEME.primary
     };
 
     try {
-      await setDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(goalId)), goalData);
+      if (isEdit) {
+        await updateDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(id)), { ...goalData, updatedAt: Timestamp.now() });
+      } else {
+        await addDoc(collection(db, `users/${auth.currentUser.uid}/goals`), { ...goalData, createdAt: Timestamp.now() });
+      }
       router.back();
     } catch (e) {
+      console.error('Firebase save error:', e);
       setError('Failed to save goal.');
     }
   };

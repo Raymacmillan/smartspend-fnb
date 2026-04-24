@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../src/store';
 import THEME from '../src/constants/theme';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, addDoc, updateDoc, collection, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../src/services/firebase/config';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -17,16 +17,34 @@ export default function AddGoal() {
   
   // We briefly hold the existing goal to populate fields if editing
   const [existing, setExisting] = useState(null);
-  const [name, setName] = useState(existing?.name || '');
-  const [target, setTarget] = useState(existing ? String(existing.target) : '');
-  const [saved, setSaved] = useState(existing ? String(existing.saved) : '0');
-  const [deadline, setDeadline] = useState(existing?.deadline || DEADLINES[0]);
-  const [icon, setIcon] = useState(existing?.icon || ICONS[4]);
+  const [name, setName] = useState('');
+  const [target, setTarget] = useState('');
+  const [saved, setSaved] = useState('0');
+  const [deadline, setDeadline] = useState(DEADLINES[0]);
+  const [icon, setIcon] = useState(ICONS[4]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // If we're editing, we load the goal data from params
-    // For simplicity, we just trust the inputs for the new Firebase flow
+    if (id && auth?.currentUser) {
+      const fetchGoal = async () => {
+        try {
+          const docRef = doc(db, `users/${auth.currentUser.uid}/goals`, String(id));
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setExisting({ id: docSnap.id, ...data });
+            setName(data.name || '');
+            setTarget(String(data.target || ''));
+            setSaved(String(data.saved || '0'));
+            setDeadline(data.deadline || DEADLINES[0]);
+            setIcon(data.icon || ICONS[4]);
+          }
+        } catch (e) {
+          console.error('Failed to load existing goal', e);
+        }
+      };
+      fetchGoal();
+    }
   }, []);
 
   const isEdit = !!existing;
@@ -36,22 +54,31 @@ export default function AddGoal() {
     if (!target || isNaN(Number(target)) || Number(target) <= 0) { setError('Please enter a valid target amount.'); return; }
     if (isNaN(Number(saved)) || Number(saved) < 0) { setError('Current savings must be 0 or more.'); return; }
     if (Number(saved) > Number(target)) { setError('Saved amount cannot exceed the target.'); return; }
+    if (!auth?.currentUser) { setError('You must be logged in to save a goal.'); return; }
 
-    const goalId = existing?.id || Date.now().toString();
     const goalData = {
-      id: goalId,
       name: name.trim(),
+      title: name.trim(),
       target: Number(target),
       saved: Number(saved),
+      current: Number(saved),
       deadline,
       icon,
-      updatedAt: Timestamp.now()
+      color: THEME.primary
     };
 
     try {
-      await setDoc(doc(db, `users/${auth.currentUser.uid}/goals`, goalId), goalData);
+      // Ensure parent user document exists so the subcollection is easily visible in the Firebase console
+      await setDoc(doc(db, 'users', auth.currentUser.uid), { lastActive: Timestamp.now() }, { merge: true });
+
+      if (isEdit) {
+        await updateDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(existing.id)), { ...goalData, updatedAt: Timestamp.now() });
+      } else {
+        await addDoc(collection(db, `users/${auth.currentUser.uid}/goals`), { ...goalData, createdAt: Timestamp.now() });
+      }
       router.back();
     } catch (e) {
+      console.error('Firebase error:', e);
       setError('Failed to save to Firebase.');
     }
   };
