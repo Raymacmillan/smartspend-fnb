@@ -1,121 +1,93 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useStore } from '../../src/store';
-import { formatPula, formatPulaShort } from '../../src/utils/currency';
-import { percentOfTotal, percentChange } from '../../src/utils/math';
-import BottomNav from '../../src/components/common/BottomNav';
-import COLORS from '../../src/constants/colors';
+import { useGlobalSearchParams, useRouter } from 'expo-router';
+import THEME from '../../src/constants/theme';
+import { auth } from '../../src/services/firebase/config';
+import { subscribeToUserTransactions } from '../../src/services/firebase/db';
+import { processTransactions } from '../../src/services/dataProcessor';
 
-export default function CategoryDetail() {
+export default function CategoryBreakdown() {
   const router = useRouter();
-  const { idx } = useLocalSearchParams();
-  const { state } = useStore();
-  const m = state.transactions[state.currentMonth];
-  const cat = m.categories[parseInt(idx)];
+  const { idx, time } = useGlobalSearchParams();
+  const [transactions, setTransactions] = useState(null);
 
-  if (!cat) return null;
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+    const unsubscribe = subscribeToUserTransactions((txs) => {
+      setTransactions(txs);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const pct = percentOfTotal(cat.amount, m.total);
-  const diff = percentChange(cat.amount, cat.prevAmount);
-  const up = cat.amount > cat.prevAmount;
+  if (!transactions) {
+    return <ActivityIndicator color={THEME.primary} size="large" style={{ marginTop: 50 }} />;
+  }
+
+  const targetDate = time ? new Date(Number(time)) : new Date();
+  const processedData = processTransactions(transactions, targetDate);
+  const category = processedData.categories[Number(idx)];
+
+  if (!category) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.error}>Category not found.</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const renderTransaction = ({ item }) => {
+    // Convert Firestore timestamp to a readable date
+    const dateObj = item.date?.toDate ? item.date.toDate() : new Date(item.date);
+    const dateString = isNaN(dateObj) ? 'Recent' : dateObj.toLocaleDateString();
+
+    return (
+      <View style={styles.transactionRow}>
+        <View>
+          <Text style={styles.txDesc}>{item.description}</Text>
+          <Text style={styles.txDate}>{dateString}</Text>
+        </View>
+        <Text style={styles.txAmount}>P {Number(item.amount).toFixed(2)}</Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Overview</Text>
+          <Text style={styles.back}>‹ Back to Overview</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{cat.name}</Text>
-        <Text style={styles.subtitle}>{m.label} · {pct}% of total</Text>
+        <Text style={styles.title}>{category.emoji} {category.name}</Text>
+        <Text style={styles.subtitle}>Total spent this month: P {category.amount.toFixed(2)}</Text>
       </View>
 
-      <ScrollView>
-        <View style={[styles.hero, { backgroundColor: cat.color }]}>
-          <Text style={styles.heroName}>{cat.emoji}  {cat.name}</Text>
-          <Text style={styles.heroAmt}>{formatPula(cat.amount)}</Text>
-          <Text style={styles.heroPct}>{pct}% of total spending</Text>
-        </View>
-
-        <View style={styles.hint}>
-          <Text style={styles.hintTitle}>{cat.name} insight</Text>
-          <Text style={styles.hintText}>
-            You spent {Math.abs(diff).toFixed(0)}% {up ? 'more' : 'less'} on {cat.name} compared to last month ({formatPulaShort(cat.prevAmount)} → {formatPulaShort(cat.amount)}).
-          </Text>
-        </View>
-
-        <Text style={styles.sectionLabel}>Transactions this month</Text>
-        {cat.transactions.map((t) => (
-          <View key={t.id} style={styles.txnRow}>
-            <View style={styles.txnLeft}>
-              <View style={[styles.txnIcon, { backgroundColor: cat.color + '33' }]}>
-                <Text style={{ fontSize: 14 }}>{cat.emoji}</Text>
-              </View>
-              <View>
-                <Text style={styles.txnName}>{t.name}</Text>
-                <Text style={styles.txnDate}>{t.date}</Text>
-              </View>
-            </View>
-            <Text style={styles.txnAmt}>−{formatPula(t.amount)}</Text>
-          </View>
-        ))}
-
-        <View style={{ height: 20 }} />
-      </ScrollView>
-      <BottomNav />
+      <FlatList
+        data={category.transactions}
+        keyExtractor={(item, i) => item.id || i.toString()}
+        renderItem={renderTransaction}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
-  header: { backgroundColor: COLORS.black, padding: 14, paddingBottom: 12 },
-  back: { color: COLORS.teal, fontSize: 11, marginBottom: 5 },
-  title: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  subtitle: { color: '#aaa', fontSize: 10, marginTop: 2 },
-  hero: { marginHorizontal: 12, marginTop: 12, borderRadius: 12, padding: 16 },
-  heroName: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  heroAmt: { color: '#fff', fontSize: 24, fontWeight: '800', marginVertical: 4 },
-  heroPct: { color: 'rgba(255,255,255,0.75)', fontSize: 11 },
-  hint: {
-    marginHorizontal: 12,
-    marginTop: 12,
-    backgroundColor: COLORS.tealFade,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.teal,
-    borderRadius: 8,
-    padding: 10,
-  },
-  hintTitle: { fontSize: 10, color: COLORS.tealDark, fontWeight: '700', marginBottom: 3 },
-  hintText: { fontSize: 11, color: '#004d44' },
-  sectionLabel: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    paddingTop: 16,
-    fontSize: 10,
-    color: COLORS.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  txnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#f5f5f5',
-  },
-  txnLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  txnIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txnName: { fontSize: 12, fontWeight: '600', color: COLORS.text },
-  txnDate: { fontSize: 10, color: COLORS.muted },
-  txnAmt: { fontSize: 12, fontWeight: '700', color: COLORS.red },
+  container: { flex: 1, backgroundColor: THEME.bg },
+  header: { backgroundColor: THEME.dark, padding: 16, paddingBottom: 20 },
+  back: { color: THEME.primary, fontSize: 12, marginBottom: 10, fontWeight: '600' },
+  title: { color: '#fff', fontSize: 20, fontWeight: '800' },
+  subtitle: { color: THEME.textLight, fontSize: 12, marginTop: 4 },
+  listContainer: { padding: 16 },
+  transactionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: THEME.border },
+  txDesc: { fontSize: 14, fontWeight: '700', color: THEME.text },
+  txDate: { fontSize: 12, color: THEME.textSub, marginTop: 4 },
+  txAmount: { fontSize: 14, fontWeight: '800', color: THEME.text },
+  error: { color: THEME.danger, textAlign: 'center', marginTop: 50, fontSize: 16 },
+  backBtn: { marginTop: 20, alignSelf: 'center' },
+  backText: { color: THEME.primary, fontSize: 16, fontWeight: '700' }
 });

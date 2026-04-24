@@ -1,34 +1,63 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store';
-import { MONTHS_ORDER } from '../../src/data/sampleTransactions';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { calculateHealthScore } from '../../src/services/health/scorer';
 import ScoreRing from '../../src/components/health/ScoreRing';
 import ScoreBar from '../../src/components/health/ScoreBar';
 import BottomNav from '../../src/components/common/BottomNav';
 import COLORS from '../../src/constants/colors';
+import { subscribeToUserTransactions } from '../../src/services/firebase/db';
+import { processTransactions } from '../../src/services/dataProcessor';
+import { useGoals } from '../../src/hooks/useGoals';
+import { auth } from '../../src/services/firebase/config';
+import { subMonths, addMonths, startOfMonth } from 'date-fns';
+import THEME from '../../src/constants/theme';
 
 export default function HealthScore() {
   const router = useRouter();
-  const { state } = useStore();
-  const { currentMonth, transactions, goals } = state;
-  const m = transactions[currentMonth];
+  const { month, time } = useGlobalSearchParams();
+  const initialDate = time ? new Date(Number(time)) : (month ? new Date(month) : startOfMonth(new Date()));
+  const [targetMonth, setTargetMonth] = useState(initialDate);
 
-  const monthIdx = MONTHS_ORDER.indexOf(currentMonth);
-  const prevKey = MONTHS_ORDER[monthIdx - 1] || null;
-  const prev = prevKey ? transactions[prevKey] : null;
+  const { goals } = useGoals(auth?.currentUser?.uid);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+    const unsubscribe = subscribeToUserTransactions((txs) => {
+      setTransactions(txs);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+  
+  useEffect(() => {
+    if (time) setTargetMonth(new Date(Number(time)));
+    else if (month) setTargetMonth(new Date(month));
+  }, [time, month]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.teal} />
+      </SafeAreaView>
+    );
+  }
+
+  const m = processTransactions(transactions, targetMonth);
+  const prevM = processTransactions(transactions, subMonths(targetMonth, 1));
 
   const score = calculateHealthScore({
     categories: m.categories,
     total: m.total,
     goals,
-    prevTotal: prev?.total,
+    prevTotal: m.prevTotal,
   });
 
-  const prevScore = prev
-    ? calculateHealthScore({ categories: prev.categories, total: prev.total, goals, prevTotal: null })
+  const prevScore = prevM.total > 0
+    ? calculateHealthScore({ categories: prevM.categories, total: prevM.total, goals, prevTotal: null })
     : null;
 
   const scoreDiff = prevScore ? score.total - prevScore.total : null;
@@ -45,7 +74,11 @@ export default function HealthScore() {
           <Text style={styles.back}>‹ Overview</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Financial Health Score</Text>
-        <Text style={styles.subtitle}>{m.label}</Text>
+        <View style={styles.monthRow}>
+          <TouchableOpacity onPress={() => setTargetMonth(d => subMonths(d, 1))} style={styles.navBtn}><Text style={styles.navBtnTxt}>‹</Text></TouchableOpacity>
+          <Text style={styles.subtitle}>{m.label}</Text>
+          <TouchableOpacity onPress={() => setTargetMonth(d => addMonths(d, 1))} style={styles.navBtn}><Text style={styles.navBtnTxt}>›</Text></TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -55,7 +88,7 @@ export default function HealthScore() {
           {scoreDiff !== null && (
             <Text style={[styles.scoreSub, { color: scoreDiff >= 0 ? COLORS.teal : COLORS.red }]}>
               {scoreDiff >= 0 ? '▲ +' : '▼ '}
-              {Math.abs(scoreDiff)} points vs {prev ? transactions[prevKey].label : 'last month'}
+                  {Math.abs(scoreDiff)} points vs {prevM.total > 0 ? prevM.label : 'last month'}
             </Text>
           )}
           {prevScore && (
@@ -74,7 +107,7 @@ export default function HealthScore() {
 
         <View style={styles.tagsSec}>
           <Text style={styles.tagsLabel}>
-            {prev ? `What helped vs ${transactions[prevKey].label}` : 'Positive factors'}
+                {prevM.total > 0 ? `What helped vs ${prevM.label}` : 'Positive factors'}
           </Text>
           <View style={styles.tagRow}>
             {score.helped.map((t) => (
@@ -84,7 +117,7 @@ export default function HealthScore() {
             ))}
           </View>
           <Text style={styles.tagsLabel}>
-            {prev ? `What hurt vs ${transactions[prevKey].label}` : 'Areas to improve'}
+                {prevM.total > 0 ? `What hurt vs ${prevM.label}` : 'Areas to improve'}
           </Text>
           <View style={styles.tagRow}>
             {score.hurt.map((t) => (
@@ -116,10 +149,13 @@ export default function HealthScore() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  header: { backgroundColor: COLORS.black, padding: 14, paddingBottom: 12 },
-  back: { color: COLORS.teal, fontSize: 11, marginBottom: 5 },
-  title: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  subtitle: { color: '#aaa', fontSize: 10, marginTop: 2 },
+  header: { backgroundColor: THEME.dark, padding: 16, paddingBottom: 14 },
+  back: { color: THEME.primary, fontSize: 12, marginBottom: 8, fontWeight: '600' },
+  title: { color: '#fff', fontSize: 20, fontWeight: '900' },
+  subtitle: { color: THEME.textLight, fontSize: 12, fontWeight: '600' },
+  monthRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
+  navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffffff15', alignItems: 'center', justifyContent: 'center' },
+  navBtnTxt: { color: '#fff', fontSize: 18, lineHeight: 22 },
   scoreWrap: { alignItems: 'center', padding: 24, paddingBottom: 16 },
   scoreStatus: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginTop: 14 },
   scoreSub: { fontSize: 11, fontWeight: '600', marginTop: 4 },

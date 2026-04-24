@@ -1,51 +1,80 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store';
-import { analyseCharges } from '../../src/services/charges/analyser';
-import { formatPula } from '../../src/utils/currency';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import BottomNav from '../../src/components/common/BottomNav';
 import COLORS from '../../src/constants/colors';
+import { auth } from '../../src/services/firebase/config';
+import { subscribeToUserTransactions } from '../../src/services/firebase/db';
+import { processTransactions } from '../../src/services/dataProcessor';
+import { format, subMonths, addMonths, startOfMonth } from 'date-fns';
+import { formatPula } from '../../src/utils/currency';
+import THEME from '../../src/constants/theme';
 
 export default function Charges() {
   const router = useRouter();
-  const { state } = useStore();
-  const m = state.transactions[state.currentMonth];
-  const prev = state.transactions.feb;
+  const { month, time } = useGlobalSearchParams();
+  const initialDate = time ? new Date(Number(time)) : (month ? new Date(month) : startOfMonth(new Date()));
+  const [targetMonth, setTargetMonth] = useState(initialDate);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const chargesCat = m.categories.find((c) => c.key === 'bankCharges');
-  const prevCharges = prev?.categories.find((c) => c.key === 'bankCharges');
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+    const unsubscribe = subscribeToUserTransactions((txs) => {
+      setTransactions(txs);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const { total, breakdown, diff } = analyseCharges(
-    chargesCat?.transactions || [],
-    prevCharges?.amount || 0
-  );
+  useEffect(() => {
+    if (time) setTargetMonth(new Date(Number(time)));
+    else if (month) setTargetMonth(new Date(month));
+  }, [time, month]);
 
-  // Include derived ATM-related charges (8.50 × withdrawals) from prototype math
-  const atmCat = m.categories.find((c) => c.key === 'atm');
-  const atmFees = atmCat ? atmCat.transactions.length * 8.50 : 0;
-  const totalWithAtm = total + atmFees;
+  if (loading) return <ActivityIndicator color={COLORS.teal} style={{ marginTop: 50 }} />;
 
-  const items = [
-    { name: 'ATM Withdrawals', count: atmCat?.transactions.length || 0, amount: atmFees, color: COLORS.blue },
-    ...breakdown.map((b) => ({
-      name: b.name,
-      count: 1,
-      amount: b.amount,
-      color: b.color,
-    })),
-  ];
+  const processedData = processTransactions(transactions, targetMonth);
+  const prevMonthData = processTransactions(transactions, subMonths(targetMonth, 1));
+
+  const chargesCat = processedData.categories.find((c) => c.key === 'bankCharges');
+  const prevChargesCat = prevMonthData.categories.find((c) => c.key === 'bankCharges');
+
+  const atmCat = processedData.categories.find((c) => c.key === 'atm');
+
+  const totalWithAtm = chargesCat?.amount || 0;
+  const prevTotalWithAtm = prevChargesCat?.amount || 0;
+  const diff = totalWithAtm - prevTotalWithAtm;
+
+  const feeMap = new Map();
+  (chargesCat?.transactions || []).forEach((tx) => {
+    const name = tx.description;
+    if (!feeMap.has(name)) feeMap.set(name, { name, count: 0, amount: 0, color: COLORS.red });
+    const item = feeMap.get(name);
+    item.count += 1;
+    item.amount += Number(tx.amount);
+  });
+  const items = Array.from(feeMap.values());
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.ctop}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Overview</Text>
-        </TouchableOpacity>
-        <Text style={styles.cl}>Total bank charges this month</Text>
+        <View style={styles.monthRow}>
+          <TouchableOpacity onPress={() => setTargetMonth(d => subMonths(d, 1))} style={styles.navBtn}><Text style={styles.navBtnTxt}>‹</Text></TouchableOpacity>
+          <Text style={styles.cl}>Total bank charges · {format(targetMonth, 'MMMM yyyy')}</Text>
+          <TouchableOpacity onPress={() => setTargetMonth(d => addMonths(d, 1))} style={styles.navBtn}><Text style={styles.navBtnTxt}>›</Text></TouchableOpacity>
+        </View>
         <Text style={styles.ca}>{formatPula(totalWithAtm)}</Text>
-        <Text style={styles.ct}>Up P{Math.round(diff + atmFees)} from February</Text>
+        {diff !== 0 ? (
+          <Text style={[styles.ct, { color: diff > 0 ? COLORS.orange : COLORS.teal }]}>
+            {diff > 0 ? 'Up' : 'Down'} {formatPula(Math.abs(diff))} from {format(subMonths(targetMonth, 1), 'MMMM')}
+          </Text>
+        ) : (
+          <Text style={[styles.ct, { color: '#888' }]}>
+            No change from {format(subMonths(targetMonth, 1), 'MMMM')}
+          </Text>
+        )}
       </View>
 
       <ScrollView>
@@ -68,7 +97,7 @@ export default function Charges() {
 
         <View style={styles.hint}>
           <Text style={styles.hintTitle}>Most fees came from ATM use</Text>
-          <Text style={styles.hintText}>Switching 3 of {atmCat?.transactions.length || 5} ATM visits to tap-to-pay saves P25.50/month</Text>
+          <Text style={styles.hintText}>Switching 3 of {atmCat?.transactions?.length || 0} ATM visits to tap-to-pay saves P25.50/month</Text>
         </View>
 
         <View style={[styles.hint, styles.hintPurple]}>
@@ -85,11 +114,13 @@ export default function Charges() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  ctop: { backgroundColor: COLORS.black, padding: 14 },
-  back: { color: COLORS.teal, fontSize: 11, marginBottom: 6 },
-  cl: { color: '#aaa', fontSize: 10 },
+  ctop: { backgroundColor: THEME.dark, padding: 16, paddingBottom: 14 },
+  cl: { color: THEME.textLight, fontSize: 11 },
   ca: { color: '#fff', fontSize: 24, fontWeight: '800', marginVertical: 2 },
   ct: { color: COLORS.orange, fontSize: 10 },
+  monthRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 },
+  navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffffff15', alignItems: 'center', justifyContent: 'center' },
+  navBtnTxt: { color: '#fff', fontSize: 18, lineHeight: 22 },
   sectionLabel: {
     paddingHorizontal: 14,
     paddingVertical: 10,

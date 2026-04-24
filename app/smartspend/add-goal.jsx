@@ -5,6 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../../src/store';
 import BottomNav from '../../src/components/common/BottomNav';
 import COLORS from '../../src/constants/colors';
+import { saveGoal, updateGoal } from '../../src/services/firebase/firestore'; 
+import { auth } from '../../src/services/firebase/config';
 
 export default function AddGoal() {
   const router = useRouter();
@@ -26,21 +28,28 @@ export default function AddGoal() {
     }
   }, [editing?.id]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !target || !deadline) {
       Alert.alert('Missing fields', 'Please fill in all fields.');
       return;
     }
-    const goalData = {
-      id: editing ? editing.id : Date.now(),
-      name: name.trim(),
-      target: parseFloat(target),
-      saved: parseFloat(saved) || 0,
-      deadline: deadline.trim(),
-    };
-    if (editing) dispatch({ type: 'UPDATE_GOAL', payload: goalData });
-    else dispatch({ type: 'ADD_GOAL', payload: goalData });
+   const goalData = {
+    name: name.trim(),
+    target: parseFloat(target),
+    saved: parseFloat(saved) || 0,
+    deadline: deadline.trim(),
+    userId: auth.currentUser.uid,
+  };
+  try {
+    if (editing) {
+      await updateGoal(auth.currentUser.uid, editing.id, goalData);
+    } else {
+      await saveGoal(auth.currentUser.uid, goalData);
+    }
     router.push('/smartspend/goals');
+  } catch (error) {
+    Alert.alert('Error', 'Could not save goal. Try again.');
+  }
   };
 
   return (
@@ -63,8 +72,8 @@ export default function AddGoal() {
         <Text style={styles.label}>Amount already saved (P)</Text>
         <TextInput style={styles.input} value={saved} onChangeText={setSaved} placeholder="e.g. 1800" keyboardType="numeric" />
 
-        <Text style={styles.label}>Deadline (e.g. December 2025)</Text>
-        <TextInput style={styles.input} value={deadline} onChangeText={setDeadline} placeholder="e.g. December 2025" />
+        <Text style={styles.label}>Deadline (e.g. December 2026)</Text>
+        <TextInput style={styles.input} value={deadline} onChangeText={setDeadline} placeholder="e.g. December 2026" />
 
         <TouchableOpacity style={styles.cta} onPress={handleSave}>
           <Text style={styles.ctaTxt}>Save Goal</Text>

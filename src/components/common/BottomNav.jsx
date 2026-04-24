@@ -1,14 +1,15 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import COLORS from '../../constants/colors';
 
 const NAV_ITEMS = [
-  { label: 'Home', icon: '🏠', route: '/' },
-  { label: 'Bank', icon: '💳', route: '/bank' },
-  { label: 'Message', icon: '💬', route: '/messages', badge: true },
-  { label: 'My profile', icon: '👤', route: '/profile' },
-  { label: 'Menu', icon: '☰', route: '/menu' },
+  { label: 'Dashboard', icon: 'home', route: '/(tabs)' },
+  { label: 'Insights', icon: 'lightbulb-on', route: '/smartspend/recommendations' },
+  { label: 'Analytics', icon: 'chart-bar', route: '/analytics' },
+  { label: 'Goals', icon: 'bullseye-arrow', route: '/goals' },
+  { label: 'More', icon: 'menu', route: '/more' },
 ];
 
 export default function BottomNav() {
@@ -18,7 +19,7 @@ export default function BottomNav() {
   return (
     <View style={styles.nav}>
       {NAV_ITEMS.map((item) => {
-        const isActive = pathname === item.route;
+        const isActive = pathname === item.route || (item.route !== '/' && pathname.startsWith(item.route));
         return (
           <TouchableOpacity
             key={item.route}
@@ -26,7 +27,7 @@ export default function BottomNav() {
             onPress={() => router.push(item.route)}
           >
             <View>
-              <Text style={styles.icon}>{item.icon}</Text>
+              <MaterialCommunityIcons name={item.icon} size={26} color={isActive ? COLORS.teal : '#555'} />
               {item.badge && <View style={styles.dot} />}
             </View>
             <Text style={[styles.label, isActive && styles.labelActive]}>
@@ -54,11 +55,9 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     gap: 3,
   },
-  icon: {
-    fontSize: 18,
-  },
   label: {
-    fontSize: 9,
+    fontSize: 10,
+    fontWeight: '600',
     color: '#666',
   },
   labelActive: {

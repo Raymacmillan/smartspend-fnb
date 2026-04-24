@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store';
-import { MONTHS_ORDER } from '../../src/data/sampleTransactions';
+import { startOfMonth } from 'date-fns';
 import { formatPula, formatPulaShort } from '../../src/utils/currency';
 import { percentChange } from '../../src/utils/math';
 import { generateRecommendations } from '../../src/services/recommendations/engine';
@@ -15,44 +14,124 @@ import InsightCard from '../../src/components/overview/InsightCard';
 import MonthSwitcher from '../../src/components/overview/MonthSwitcher';
 import BottomNav from '../../src/components/common/BottomNav';
 import COLORS from '../../src/constants/colors';
+import { collection, addDoc, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../../src/services/firebase/config';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { subscribeToUserTransactions } from '../../src/services/firebase/db';
+import { processTransactions, getAvailableMonths } from '../../src/services/dataProcessor';
+import { useGoals } from '../../src/hooks/useGoals';
 
 export default function SmartSpendOverview() {
   const router = useRouter();
-  const { state, dispatch } = useStore();
-  const { currentMonth, transactions, goals, user } = state;
+  const { goals } = useGoals(auth?.currentUser?.uid);
+  const [transactions, setTransactions] = useState([]);
+  const [targetMonth, setTargetMonth] = useState(startOfMonth(new Date()));
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
 
-  const m = transactions[currentMonth];
-  const monthIdx = MONTHS_ORDER.indexOf(currentMonth);
-  const prevKey = MONTHS_ORDER[monthIdx - 1] || null;
-  const prev = prevKey ? transactions[prevKey] : null;
-  const diff = prev ? percentChange(m.total, prev.total) : null;
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+
+    // Get the dynamic user name
+    getDoc(doc(db, 'users', auth.currentUser.uid)).then(snap => {
+      if (snap.exists()) setUserData(snap.data());
+    });
+
+    // Get real-time transactions
+    const unsubscribe = subscribeToUserTransactions((txs) => {
+      setTransactions(txs);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.teal} />
+      </SafeAreaView>
+    );
+  }
+
+  const availableMonths = getAvailableMonths(transactions);
+  const currentIdx = availableMonths.findIndex(d => d.getTime() === targetMonth.getTime());
+  
+  const hasPrev = currentIdx < availableMonths.length - 1;
+  const hasNext = currentIdx > 0;
+
+  const handlePrevMonth = () => { if (hasPrev) setTargetMonth(availableMonths[currentIdx + 1]); };
+  const handleNextMonth = () => { if (hasNext) setTargetMonth(availableMonths[currentIdx - 1]); };
+
+  const m = processTransactions(transactions, targetMonth);
+  const diff = m.prevTotal ? percentChange(m.total, m.prevTotal) : null;
+
+  useEffect(() => {
+    async function fetchRecs() {
+      const currentData = processTransactions(transactions, targetMonth);
+      if (currentData.categories && currentData.categories.length > 0) {
+        try {
+          const res = await generateRecommendations(currentData.categories);
+          setRecommendations(res || []);
+        } catch (e) {
+          setRecommendations([]);
+        }
+      } else setRecommendations([]);
+    }
+    fetchRecs();
+  }, [transactions, targetMonth]);
 
   // Computed health score
   const healthScore = calculateHealthScore({
     categories: m.categories,
     total: m.total,
     goals,
-    prevTotal: prev?.total,
+    prevTotal: m.prevTotal,
   });
-  const prevHealthScore = prev
-    ? calculateHealthScore({ categories: prev.categories, total: prev.total, goals, prevTotal: null })
-    : null;
-  const scoreDiff = prevHealthScore !== null ? healthScore.total - prevHealthScore.total : null;
 
-  const recommendations = generateRecommendations(m.categories);
   const totalSaving = recommendations.reduce((sum, r) => sum + r.savingRaw, 0);
-
   const firstGoal = goals[0];
   const goalData = firstGoal ? calculateGoal(firstGoal) : null;
 
   const chargesCat = m.categories.find((c) => c.key === 'bankCharges');
-  const prevChargesCat = prev?.categories.find((c) => c.key === 'bankCharges');
-  const chargeDiff = chargesCat && prevChargesCat
-    ? Math.round(chargesCat.amount - prevChargesCat.amount)
-    : null;
 
-  const goToPrev = () => dispatch({ type: 'SET_MONTH', payload: MONTHS_ORDER[monthIdx - 1] });
-  const goToNext = () => dispatch({ type: 'SET_MONTH', payload: MONTHS_ORDER[monthIdx + 1] });
+  const handleInjectMockData = async () => {
+    if (!auth?.currentUser) {
+      Alert.alert('Error', 'No user logged in.');
+      return;
+    }
+
+    // Smart Hackathon Trick: Bulk inject a realistic "persona" spending pattern
+    // This acts exactly like pulling from a real banking API without the complex setup
+    const templates = [
+      { desc: 'KFC GABORONE', min: 40, max: 150 },
+      { desc: 'CHECKERS AIRPORT JUNCTION', min: 300, max: 1200 },
+      { desc: 'ORANGE AIRTIME TOPUP', min: 10, max: 50 },
+      { desc: 'ATM WITHDRAWAL MAIN MALL', min: 100, max: 500 },
+      { desc: 'ENGEN TSHOLOFELO', min: 150, max: 400 },
+      { desc: 'BPC ELECTRICITY', min: 50, max: 200 },
+      { desc: 'MONTHLY ACCOUNT FEE', min: 15, max: 15 },
+    ];
+
+    try {
+      const transactionsRef = collection(db, `users/${auth.currentUser.uid}/transactions`);
+      const start = new Date(2026, 0, 1).getTime(); // Jan 1st
+      const end = new Date(2026, 2, 31, 23, 59, 59).getTime(); // Mar 31st
+      
+      const promises = Array.from({ length: 45 }).map(() => {
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        const randomAmount = Math.floor(Math.random() * (template.max - template.min + 1)) + template.min;
+        const randomTime = start + Math.random() * (end - start);
+        const date = new Date(randomTime);
+        return addDoc(transactionsRef, { description: template.desc, amount: randomAmount, date: Timestamp.fromDate(date) });
+      });
+      
+      await Promise.all(promises);
+      Alert.alert('Success', 'Loaded 45 realistic transactions across Jan, Feb, and March!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add transaction.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -61,15 +140,15 @@ export default function SmartSpendOverview() {
           <Text style={styles.back}>‹ FNB Home</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Smart Spend Analytics</Text>
-        <Text style={styles.subtitle}>{user.name} · {user.account}</Text>
+        <Text style={styles.subtitle}>{userData?.name || 'SmartSpend User'} · Cheque Account</Text>
       </View>
 
       <MonthSwitcher
         label={m.label}
-        onPrev={goToPrev}
-        onNext={goToNext}
-        hasPrev={monthIdx > 0}
-        hasNext={monthIdx < MONTHS_ORDER.length - 1}
+        onPrev={handlePrevMonth}
+        onNext={handleNextMonth}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
         diff={diff}
       />
 
@@ -81,46 +160,37 @@ export default function SmartSpendOverview() {
 
         <DonutChart categories={m.categories} total={m.total} />
 
-        <View style={styles.section}>
-          {m.categories.map((cat, idx) => (
-            <CategoryRow
-              key={cat.key}
-              category={cat}
-              total={m.total}
-              onPress={() => router.push({ pathname: '/smartspend/category', params: { idx } })}
-            />
-          ))}
-        </View>
-
         <Text style={styles.sectionLabel}>Explore your finances</Text>
         <View style={styles.grid}>
           <View style={styles.gridItem}>
             <InsightCard
-              icon="✓"
+              icon="lightbulb-on-outline"
               title="Recommendations"
               value={`P ${Math.round(totalSaving)}`}
               valueColor={COLORS.orange}
               subtitle="potential saving/month"
-              onPress={() => router.push('/smartspend/recommendations')}
+              onPress={() => router.push({
+                pathname: '/smartspend/recommendations',
+                params: { time: targetMonth.getTime().toString() }
+              })}
             />
           </View>
           <View style={styles.gridItem}>
             <InsightCard
-              icon="❤️"
+              icon="heart-pulse"
               title="Health Score"
               value={`${healthScore.total}/100`}
               valueColor={healthScore.total >= 75 ? COLORS.teal : healthScore.total >= 50 ? COLORS.orange : COLORS.red}
-              subtitle={
-                scoreDiff !== null
-                  ? `${scoreDiff > 0 ? '▲ +' : '▼ '}${Math.abs(scoreDiff)} pts vs last month`
-                  : 'your financial health'
-              }
-              onPress={() => router.push('/smartspend/health-score')}
+              subtitle="your financial health"
+              onPress={() => router.push({
+                pathname: '/smartspend/health-score',
+                params: { time: targetMonth.getTime().toString() }
+              })}
             />
           </View>
           <View style={styles.gridItem}>
             <InsightCard
-              icon="🎯"
+              icon="bullseye-arrow"
               title="Goal Saving"
               value={goalData ? `${goalData.percentComplete}%` : '—'}
               valueColor={COLORS.blue}
@@ -134,16 +204,15 @@ export default function SmartSpendOverview() {
           </View>
           <View style={styles.gridItem}>
             <InsightCard
-              icon="💳"
+              icon="credit-card-outline"
               title="Bank Charges"
               value={formatPulaShort(chargesCat?.amount || 0)}
               valueColor={COLORS.red}
-              subtitle={
-                chargeDiff !== null
-                  ? `this month · ${chargeDiff > 0 ? `▲ +P${chargeDiff}` : `▼ −P${Math.abs(chargeDiff)}`}`
-                  : 'this month'
-              }
-              onPress={() => router.push('/smartspend/charges')}
+              subtitle="this month"
+              onPress={() => router.push({
+                pathname: '/smartspend/charges',
+                params: { time: targetMonth.getTime().toString() }
+              })}
             />
           </View>
         </View>
@@ -160,6 +229,12 @@ export default function SmartSpendOverview() {
               See the business model, market opportunity, and how SmartSpend is transforming financial health in Botswana →
             </Text>
           </View>
+        </TouchableOpacity>
+
+        {/* BULK INJECT MOCK API DATA BUTTON */}
+        <TouchableOpacity style={styles.devButton} onPress={handleInjectMockData} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="database-import" size={16} color={COLORS.teal} style={{ marginRight: 6 }} />
+          <Text style={styles.devButtonText}>Fetch Mock API Spending Data</Text>
         </TouchableOpacity>
 
         <View style={{ height: 20 }} />
@@ -207,4 +282,17 @@ const styles = StyleSheet.create({
   },
   impactTitle: { color: '#fff', fontSize: 12, fontWeight: '800', marginBottom: 4 },
   impactSub: { color: '#aaa', fontSize: 10, lineHeight: 15 },
+  devButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: '#ebfdfb',
+    borderWidth: 1,
+    borderColor: COLORS.teal,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginTop: 14,
+  },
+  devButtonText: { color: COLORS.teal, fontWeight: '800', fontSize: 13 },
 });

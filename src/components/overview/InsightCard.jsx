@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import COLORS from '../../constants/colors';
 
 export default function InsightCard({ icon, title, value, valueColor, subtitle, onPress }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.iconBox, { backgroundColor: valueColor + '22' }]}>
-        <Text style={styles.iconText}>{icon}</Text>
+        <MaterialCommunityIcons name={icon} size={16} color={valueColor} />
       </View>
       <Text style={styles.head}>{title}</Text>
       <Text style={[styles.value, { color: valueColor }]}>{value}</Text>
@@ -31,9 +32,6 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconText: {
-    fontSize: 13,
   },
   head: {
     fontSize: 10,
