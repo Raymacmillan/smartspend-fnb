@@ -1,67 +1,79 @@
-// Takes the current month's categories and returns recommendations
-export const generateRecommendations = (categories) => {
-  const recommendations = [];
+const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 
-  categories.forEach((cat) => {
-    // Airtime: many small purchases
-    if (cat.key === 'airtime' && cat.transactions.length >= 4) {
-      const fees = cat.transactions.length * 1.50;
-      const saving = round2(fees * 0.83);
-      recommendations.push({
-        id: 'airtime-consolidation',
-        icon: 'phone',
-        title: 'Frequent airtime purchases',
-        subtitle: `${cat.transactions.length} purchases this month`,
-        issue: `${cat.transactions.length} × small purchases`,
-        estFees: `P ${fees.toFixed(2)}`,
-        betterOption: '1 monthly P100 purchase',
-        saving: `P ${saving.toFixed(2)}/month`,
-        savingRaw: saving,
-        severity: 'medium',
-      });
+export const generateRecommendations = async (categories) => {
+  if (!categories || categories.length === 0) return [];
+
+  // Security Check
+  if (!GROQ_API_KEY) {
+    console.error("Missing Groq API Key");
+    return [];
+  }
+
+  try {
+    const enrichedData = categories.map(c => ({
+      category: c.name || c.key,
+      totalSpent: c.amount,
+      transactionCount: c.transactions?.length || 0,
+      topMerchants: (c.transactions || []).slice(0, 3).map(t => t.name)
+    }));
+
+    const prompt = `
+    Analyze this Botswana spending data for SmartSpend (FNB). 
+    Provide 3 personalized recommendations in JSON format.
+    Context: Pula (P) currency, high ATM fees, FNB-to-FNB transfers are free.
+
+    Data: ${JSON.stringify(enrichedData)}
+
+    Respond ONLY with a valid JSON object containing a "recommendations" array.
+    CRITICAL: The JSON must be completely valid. Do NOT include any comments (like //) or math expressions (like 140 * 0.4). The "savingRaw" value MUST be a plain calculated number.
+    {
+      "recommendations": [{
+        "id": "unique-string",
+        "icon": "lightbulb-on",
+        "title": "Actionable Title",
+        "subtitle": "Context from data",
+        "issue": "Educational insight",
+        "estFees": "P amount",
+        "betterOption": "Step-by-step plan",
+        "saving": "P saved/month",
+        "savingRaw": 140,
+        "severity": "high"
+      }]
+    }`;
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Groq API Error (${response.status}): ${errorText}`);
+      return [];
     }
 
-    // ATM: high withdrawal frequency
-    if (cat.key === 'atm' && cat.transactions.length >= 4) {
-      const fees = cat.transactions.length * 8.50;
-      const saving = round2(fees * 0.60);
-      recommendations.push({
-        id: 'atm-reduction',
-        icon: 'card',
-        title: 'High ATM withdrawal frequency',
-        subtitle: `${cat.transactions.length} withdrawals · P${fees.toFixed(2)} in fees`,
-        issue: `${cat.transactions.length} ATM withdrawals`,
-        estFees: `P ${fees.toFixed(2)}`,
-        betterOption: 'Tap-to-pay or app transfers',
-        saving: `P ${saving.toFixed(2)}/month`,
-        savingRaw: saving,
-        severity: 'high',
-      });
+    const result = await response.json();
+    if (!result.choices || result.choices.length === 0) {
+      console.error("Unexpected Groq API response:", result);
+      return [];
     }
 
-    // Dining: repeated food orders
-    if (cat.key === 'dining' && cat.transactions.length >= 4) {
-      const avg = round2(cat.amount / cat.transactions.length);
-      const saving = round2(cat.amount * 0.30);
-      recommendations.push({
-        id: 'dining-reduction',
-        icon: 'restaurant',
-        title: 'Repeated food purchases',
-        subtitle: `${cat.transactions.length} orders · avg P${avg} each`,
-        issue: `${cat.transactions.length} food/delivery orders`,
-        estFees: `P ${cat.amount.toFixed(2)}`,
-        betterOption: 'Meal plan 3 days/week',
-        saving: `P ${saving.toFixed(2)}/month`,
-        savingRaw: saving,
-        severity: 'medium',
-      });
-    }
-  });
+    const content = JSON.parse(result.choices[0].message.content || "{}");
+    
+    // Return the array (handling Groq's potential object wrapper)
+    const finalArray = Array.isArray(content) ? content : content.recommendations;
+    return finalArray.sort((a, b) => b.savingRaw - a.savingRaw);
 
-  // Sort by highest saving first
-  recommendations.sort((a, b) => b.savingRaw - a.savingRaw);
-
-  return recommendations;
+  } catch (error) {
+    console.error("Groq AI Error:", error);
+    return []; // Return empty so the app doesn't crash
+  }
 };
-
-const round2 = (n) => Math.round(n * 100) / 100;
