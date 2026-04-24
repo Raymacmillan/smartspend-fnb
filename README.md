@@ -1,5 +1,5 @@
 # SmartSpend Analytics 🇧🇼
-### FNB FinTech Hackathon 2025
+### FNB FinTech Hackathon 2026
 
 SmartSpend Analytics is a React Native mobile application built with Expo, Firebase, and Groq AI. Designed specifically for the Botswana market, it provides FNB customers with highly personalized, intelligent financial insights to bridge the gap between raw banking data and actionable financial literacy.
 
