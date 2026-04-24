@@ -65,18 +65,22 @@ export default function Charges() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Fee Breakdown</Text>
 
-          {chargesCat?.transactions.map((t) => (
-            <View key={t.id} style={styles.feeRow}>
-              <View style={styles.feeIconWrap}>
-                <Text style={{ fontSize: 16 }}>🏦</Text>
+          {chargesCat?.transactions.map((t, i) => {
+            const dateObj = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+            const dateString = isNaN(dateObj) ? 'Recent' : dateObj.toLocaleDateString();
+            return (
+              <View key={t.id || i} style={styles.feeRow}>
+                <View style={styles.feeIconWrap}>
+                  <Text style={{ fontSize: 16 }}>🏦</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.feeName}>{t.description || t.name}</Text>
+                  <Text style={styles.feeDate}>{dateString}</Text>
+                </View>
+                <Text style={styles.feeAmt}>{formatPulaShort(t.amount)}</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.feeName}>{t.name}</Text>
-                <Text style={styles.feeDate}>{t.date}</Text>
-              </View>
-              <Text style={styles.feeAmt}>{formatPulaShort(t.amount)}</Text>
-            </View>
-          ))}
+            );
+          })}
 
           {atmCat && atmCat.transactions.length > 0 && (
             <View style={styles.feeRow}>

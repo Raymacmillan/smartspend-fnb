@@ -1,17 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useStore } from '../src/store';
 import { calculateGoal } from '../src/services/goals/calculator';
 import { formatPula, formatPulaShort } from '../src/utils/currency';
 import THEME from '../src/constants/theme';
+import { subscribeToUserGoals } from '../src/services/firebase/db';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../src/services/firebase/config';
 
 export default function GoalDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { state, dispatch } = useStore();
-  const goal = state.goals.find((g) => g.id === Number(id));
+  const [goals, setGoals] = useState([]);
+
+  useEffect(() => {
+    if (auth?.currentUser) return subscribeToUserGoals(setGoals);
+  }, []);
+
+  const goal = goals.find((g) => String(g.id) === String(id));
 
   if (!goal) {
     return (
@@ -28,8 +35,8 @@ export default function GoalDetail() {
 
   const { amountNeeded, requiredMonthly, percentComplete, onTrack, monthsRemaining } = calculateGoal(goal);
 
-  const handleDelete = () => {
-    dispatch({ type: 'DELETE_GOAL', payload: goal.id });
+  const handleDelete = async () => {
+    await deleteDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(goal.id)));
     router.back();
   };
 

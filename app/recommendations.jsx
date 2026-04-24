@@ -6,6 +6,7 @@ import { useStore } from '../src/store';
 import { generateRecommendations } from '../src/services/recommendations/engine';
 import { formatPula } from '../src/utils/currency';
 import THEME from '../src/constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Recommendations() {
   const router = useRouter();
@@ -34,14 +35,15 @@ export default function Recommendations() {
           <Text style={styles.savingsLabel}>Potential Monthly Saving</Text>
           <Text style={styles.savingsAmt}>{formatPula(totalSaving)}</Text>
           <Text style={styles.savingsNote}>Based on {recs.length} identified opportunity{recs.length !== 1 ? 's' : ''} this month</Text>
-          <View style={styles.advisoryTag}>
-            <Text style={styles.advisoryTagTxt}>⚖️ Advisory only · Not regulated financial advice</Text>
+          <View style={[styles.advisoryTag, { flexDirection: 'row', alignItems: 'center' }]}>
+            <MaterialCommunityIcons name="scale-balance" size={10} color={THEME.warning} style={{ marginRight: 4 }} />
+            <Text style={styles.advisoryTagTxt}>Advisory only · Not regulated financial advice</Text>
           </View>
         </View>
 
         {recs.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🎉</Text>
+            <MaterialCommunityIcons name="party-popper" size={48} color={THEME.textSub} style={{ marginBottom: 10 }} />
             <Text style={styles.emptyTitle}>Great spending habits!</Text>
             <Text style={styles.emptyTxt}>No significant optimisation opportunities found for {m.label}. Keep it up.</Text>
           </View>
@@ -50,12 +52,16 @@ export default function Recommendations() {
         {recs.map((rec) => (
           <View key={rec.id} style={[styles.recCard, { borderLeftColor: rec.severity === 'high' ? THEME.danger : THEME.warning }]}>
             <View style={styles.recTop}>
-              <View style={[styles.severityBadge, { backgroundColor: rec.severity === 'high' ? THEME.dangerFade : THEME.warningFade }]}>
+              <View style={[styles.severityBadge, { backgroundColor: rec.severity === 'high' ? THEME.dangerFade : THEME.warningFade, flexDirection: 'row', alignItems: 'center' }]}>
+                <MaterialCommunityIcons name={rec.severity === 'high' ? 'alert-circle' : 'alert'} size={12} color={rec.severity === 'high' ? THEME.danger : THEME.warning} style={{ marginRight: 4 }}/>
                 <Text style={[styles.severityTxt, { color: rec.severity === 'high' ? THEME.danger : THEME.warning }]}>
-                  {rec.severity === 'high' ? '🔴 HIGH PRIORITY' : '🟡 MEDIUM'}
+                  {rec.severity === 'high' ? 'HIGH PRIORITY' : 'MEDIUM'}
                 </Text>
               </View>
-              <Text style={styles.savingPill}>💰 Save {rec.saving}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MaterialCommunityIcons name="piggy-bank" size={16} color={THEME.success} />
+                <Text style={styles.savingPill}>Save {rec.saving}</Text>
+              </View>
             </View>
 
             <Text style={styles.recTitle}>{rec.title}</Text>
@@ -68,7 +74,7 @@ export default function Recommendations() {
                 <Text style={[styles.compareExtra, { color: THEME.danger }]}>Est. fees: {rec.estFees}</Text>
               </View>
               <View style={styles.compareArrow}>
-                <Text style={styles.compareArrowTxt}>→</Text>
+                <MaterialCommunityIcons name="arrow-right" size={20} color={THEME.textLight} />
               </View>
               <View style={[styles.compareBox, styles.compareBoxGood]}>
                 <Text style={styles.compareLabel}>Better option</Text>
@@ -80,7 +86,10 @@ export default function Recommendations() {
         ))}
 
         <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerTitle}>⚖️ Important Disclaimer</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <MaterialCommunityIcons name="scale-balance" size={16} color={THEME.warning} />
+            <Text style={styles.disclaimerTitle}>Important Disclaimer</Text>
+          </View>
           <Text style={styles.disclaimerTxt}>
             These recommendations are AI-generated advisory insights based on your spending patterns.
             They are for informational purposes only and do not constitute regulated financial advice.
@@ -127,8 +136,7 @@ const styles = StyleSheet.create({
   compareVal: { fontSize: 11, fontWeight: '700', color: THEME.text, marginBottom: 2 },
   compareExtra: { fontSize: 9, fontWeight: '600' },
   compareArrow: { alignItems: 'center', justifyContent: 'center', width: 24 },
-  compareArrowTxt: { fontSize: 16, color: THEME.textLight },
   disclaimer: { backgroundColor: THEME.warningFade, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: THEME.warning + '44' },
-  disclaimerTitle: { fontSize: 12, fontWeight: '800', color: THEME.warning, marginBottom: 6 },
+  disclaimerTitle: { fontSize: 12, fontWeight: '800', color: THEME.warning },
   disclaimerTxt: { fontSize: 10, color: THEME.text, lineHeight: 17 },
 });

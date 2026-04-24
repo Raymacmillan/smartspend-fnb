@@ -1,18 +1,28 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useStore } from '../src/store';
-import { MONTHS_ORDER } from '../src/data/sampleTransactions';
 import { formatPula, formatPulaShort } from '../src/utils/currency';
 import THEME from '../src/constants/theme';
+import { subscribeToUserTransactions } from '../src/services/firebase/db';
+import { processTransactions } from '../src/services/dataProcessor';
+import { subMonths } from 'date-fns';
+import { auth } from '../src/services/firebase/config';
 
 export default function Category() {
   const router = useRouter();
-  const { idx } = useLocalSearchParams();
-  const { state } = useStore();
-  const { currentMonth, transactions } = state;
-  const m = transactions[currentMonth];
+  const { idx, time } = useLocalSearchParams();
+  const [rawTxs, setRawTxs] = useState(null);
+
+  useEffect(() => {
+    if (!auth?.currentUser) return;
+    return subscribeToUserTransactions(setRawTxs);
+  }, []);
+
+  if (!rawTxs) return <SafeAreaView style={styles.container}><ActivityIndicator color={THEME.primary} style={{ marginTop: 50 }} /></SafeAreaView>;
+
+  const targetDate = time ? new Date(Number(time)) : new Date();
+  const m = processTransactions(rawTxs, targetDate);
   const cat = m.categories[Number(idx)];
 
   if (!cat) {
@@ -26,9 +36,10 @@ export default function Category() {
   }
 
   const pct = Math.round((cat.amount / m.total) * 100);
-  const diff = cat.prevAmount ? Math.round(((cat.amount - cat.prevAmount) / cat.prevAmount) * 100) : null;
-  const prevKey = MONTHS_ORDER[MONTHS_ORDER.indexOf(currentMonth) - 1];
-  const prevLabel = prevKey ? transactions[prevKey].label : null;
+  
+  const prev = processTransactions(rawTxs, subMonths(targetDate, 1));
+  const prevCat = prev.categories.find(c => c.key === cat.key);
+  const diff = prevCat && prevCat.amount > 0 ? Math.round(((cat.amount - prevCat.amount) / prevCat.amount) * 100) : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,7 +71,7 @@ export default function Category() {
             <Text style={styles.statValue}>{formatPulaShort(cat.amount / cat.transactions.length)}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>vs {prevLabel || 'Last month'}</Text>
+            <Text style={styles.statLabel}>vs {prev.label}</Text>
             <Text style={[styles.statValue, { color: diff === null ? THEME.text : diff > 0 ? THEME.danger : THEME.success }]}>
               {diff === null ? 'N/A' : `${diff > 0 ? '▲ +' : '▼ '}${Math.abs(diff)}%`}
             </Text>
@@ -79,16 +90,20 @@ export default function Category() {
         {/* Transactions */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Transactions</Text>
-          {cat.transactions.map((t) => (
-            <View key={t.id} style={styles.txRow}>
-              <View style={[styles.txDot, { backgroundColor: cat.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.txName}>{t.name}</Text>
-                <Text style={styles.txDate}>{t.date}</Text>
+          {cat.transactions.map((t, i) => {
+            const dateObj = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+            const dateString = isNaN(dateObj) ? 'Recent' : dateObj.toLocaleDateString();
+            return (
+              <View key={t.id || i} style={styles.txRow}>
+                <View style={[styles.txDot, { backgroundColor: cat.color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.txName}>{t.description || t.name}</Text>
+                  <Text style={styles.txDate}>{dateString}</Text>
+                </View>
+                <Text style={styles.txAmt}>{formatPulaShort(t.amount)}</Text>
               </View>
-              <Text style={styles.txAmt}>{formatPulaShort(t.amount)}</Text>
-            </View>
-          ))}
+            );
+          })}
           <View style={styles.txTotal}>
             <Text style={styles.txTotalLabel}>Total</Text>
             <Text style={[styles.txTotalAmt, { color: cat.color }]}>{formatPulaShort(cat.amount)}</Text>
@@ -96,13 +111,13 @@ export default function Category() {
         </View>
 
         {/* vs previous */}
-        {cat.prevAmount != null && (
+        {prevCat != null && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Month-on-Month Comparison</Text>
             <View style={styles.compareRow}>
               <View style={styles.compareCol}>
-                <Text style={styles.compareLabel}>{prevLabel || 'Last month'}</Text>
-                <Text style={styles.compareAmt}>{formatPulaShort(cat.prevAmount)}</Text>
+                <Text style={styles.compareLabel}>{prev.label}</Text>
+                <Text style={styles.compareAmt}>{formatPulaShort(prevCat.amount)}</Text>
               </View>
               <Text style={styles.compareArrow}>→</Text>
               <View style={styles.compareCol}>

@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
 import THEME from '../src/constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const PRINCIPLES = [
   {
-    icon: '🛡️',
+    icon: 'shield-check',
     title: 'Data Minimisation',
     badge: 'GDPR Art. 5(1)(c)',
     badgeColor: THEME.info,
@@ -16,7 +17,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '👥',
+    icon: 'account-group',
     title: 'Role-Based Access Control',
     badge: 'RBAC',
     badgeColor: THEME.purple,
@@ -25,7 +26,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '🔐',
+    icon: 'lock',
     title: 'Encryption in Transit & at Rest',
     badge: 'AES-256 · TLS 1.3',
     badgeColor: THEME.primary,
@@ -34,7 +35,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '✅',
+    icon: 'check-circle',
     title: 'Customer Consent',
     badge: 'GDPR Art. 6 & 7',
     badgeColor: THEME.info,
@@ -43,7 +44,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '📋',
+    icon: 'clipboard-text',
     title: 'Audit Trail',
     badge: 'Immutable Log',
     badgeColor: THEME.warning,
@@ -52,7 +53,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '🔒',
+    icon: 'shield-lock',
     title: 'Privacy-by-Design',
     badge: 'PbD Framework',
     badgeColor: THEME.primaryDark,
@@ -61,7 +62,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '🔗',
+    icon: 'link',
     title: 'Secure API Integration',
     badge: 'OAuth 2.0 · JWT',
     badgeColor: THEME.info,
@@ -70,7 +71,7 @@ const PRINCIPLES = [
     statusColor: THEME.success,
   },
   {
-    icon: '⚖️',
+    icon: 'scale-balance',
     title: 'Advisory Separation',
     badge: 'Regulatory Boundary',
     badgeColor: THEME.danger,
@@ -114,7 +115,7 @@ export default function Security() {
         action: 'Consent updated',
         detail: `${key} consent ${!consent[key] ? 'enabled' : 'disabled'} by user`,
         time: 'Just now',
-        icon: '✅',
+        icon: 'check-circle',
       },
     });
   };
@@ -129,7 +130,10 @@ export default function Security() {
           <Text style={styles.title}>Security & Privacy Centre</Text>
           <Text style={styles.sub}>Your data rights & protection</Text>
         </View>
-        <View style={styles.lockBadge}><Text style={styles.lockTxt}>🔒 Secured</Text></View>
+        <View style={styles.lockBadge}>
+          <MaterialCommunityIcons name="lock" size={12} color={THEME.success} style={{ marginRight: 4 }} />
+          <Text style={styles.lockTxt}>Secured</Text>
+        </View>
       </View>
 
       {/* Compliance strip */}
@@ -172,7 +176,7 @@ export default function Security() {
               <View key={i} style={styles.principleCard}>
                 <View style={styles.principleTop}>
                   <View style={styles.principleIconWrap}>
-                    <Text style={styles.principleIcon}>{p.icon}</Text>
+                    <MaterialCommunityIcons name={p.icon} size={22} color={THEME.text} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.principleHeadRow}>
@@ -191,7 +195,10 @@ export default function Security() {
               </View>
             ))}
             <View style={styles.disclaimerBox}>
-              <Text style={styles.disclaimerTitle}>⚖️ Regulatory Disclaimer</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <MaterialCommunityIcons name="scale-balance" size={16} color={THEME.warning} />
+                <Text style={styles.disclaimerTitle}>Regulatory Disclaimer</Text>
+              </View>
               <Text style={styles.disclaimerTxt}>
                 SmartSpend provides spending analysis and advisory insights only. This application is
                 not a regulated financial services provider. Insights are educational and informational
@@ -213,28 +220,28 @@ export default function Security() {
             {[
               {
                 key: 'analytics',
-                icon: '📊',
+                icon: 'chart-bar',
                 title: 'Analytics & Insights',
                 desc: 'Required for health scoring, recommendations and spending analysis. Cannot be disabled while using the app.',
                 required: true,
               },
               {
                 key: 'personalization',
-                icon: '🎯',
+                icon: 'bullseye-arrow',
                 title: 'Personalisation',
                 desc: 'Allows SmartSpend to tailor recommendations based on your spending history and goal progress.',
                 required: false,
               },
               {
                 key: 'dataSharing',
-                icon: '🔗',
+                icon: 'link',
                 title: 'Partner Data Sharing',
                 desc: 'Share anonymised, aggregated spending insights with financial research partners. No personally identifiable data is ever shared.',
                 required: false,
               },
               {
                 key: 'marketing',
-                icon: '📣',
+                icon: 'bullhorn',
                 title: 'Marketing Communications',
                 desc: 'Receive personalised offers and promotions based on your financial profile. You can opt out at any time.',
                 required: false,
@@ -243,7 +250,7 @@ export default function Security() {
               <View key={item.key} style={styles.consentCard}>
                 <View style={styles.consentTop}>
                   <View style={styles.consentIconWrap}>
-                    <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                    <MaterialCommunityIcons name={item.icon} size={24} color={THEME.text} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.consentHeadRow}>
@@ -267,7 +274,10 @@ export default function Security() {
               </View>
             ))}
             <View style={styles.gdprNote}>
-              <Text style={styles.gdprNoteTitle}>🇪🇺 Your GDPR Rights</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <MaterialCommunityIcons name="earth" size={16} color={THEME.info} />
+                <Text style={styles.gdprNoteTitle}>Your GDPR Rights</Text>
+              </View>
               <Text style={styles.gdprNoteTxt}>Right to access · Right to erasure · Right to portability · Right to rectification</Text>
               <Text style={styles.gdprNoteTxt}>To exercise your rights, contact: privacy@smartspend.bw</Text>
             </View>
@@ -285,7 +295,7 @@ export default function Security() {
             {auditLog.map((entry) => (
               <View key={entry.id} style={styles.auditRow}>
                 <View style={styles.auditIconWrap}>
-                  <Text style={{ fontSize: 16 }}>{entry.icon}</Text>
+                  <MaterialCommunityIcons name={entry.icon === 'check-circle' ? 'check-circle' : 'information'} size={18} color={THEME.text} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.auditAction}>{entry.action}</Text>
@@ -295,7 +305,8 @@ export default function Security() {
               </View>
             ))}
             <View style={styles.auditNote}>
-              <Text style={styles.auditNoteTxt}>🔒 Logs are append-only and tamper-evident. Stored for 90 days in compliance with Botswana Data Protection Act.</Text>
+              <MaterialCommunityIcons name="lock-outline" size={14} color={THEME.textLight} />
+              <Text style={styles.auditNoteTxt}>Logs are append-only and tamper-evident. Stored for 90 days.</Text>
             </View>
           </>
         )}
@@ -313,7 +324,7 @@ const styles = StyleSheet.create({
   backTxt: { color: '#fff', fontSize: 26, lineHeight: 30 },
   title: { color: '#fff', fontSize: 17, fontWeight: '900' },
   sub: { color: THEME.textLight, fontSize: 10, marginTop: 1 },
-  lockBadge: { backgroundColor: THEME.success + '33', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  lockBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: THEME.success + '33', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   lockTxt: { color: THEME.success, fontSize: 10, fontWeight: '700' },
   complianceStrip: { backgroundColor: THEME.darkMid, flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 10, paddingHorizontal: 14 },
   complianceTag: { backgroundColor: '#ffffff15', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
@@ -329,7 +340,6 @@ const styles = StyleSheet.create({
   principleCard: { backgroundColor: THEME.card, borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   principleTop: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 8 },
   principleIconWrap: { width: 40, height: 40, borderRadius: 12, backgroundColor: THEME.bg, alignItems: 'center', justifyContent: 'center' },
-  principleIcon: { fontSize: 20 },
   principleHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   principleTitle: { fontSize: 13, fontWeight: '800', color: THEME.text, flex: 1 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
@@ -339,7 +349,7 @@ const styles = StyleSheet.create({
   statusPillTxt: { fontSize: 9, fontWeight: '700' },
   principleDesc: { fontSize: 11, color: THEME.textSub, lineHeight: 17 },
   disclaimerBox: { backgroundColor: THEME.warningFade, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: THEME.warning + '44' },
-  disclaimerTitle: { fontSize: 13, fontWeight: '800', color: THEME.warning, marginBottom: 6 },
+  disclaimerTitle: { fontSize: 13, fontWeight: '800', color: THEME.warning },
   disclaimerTxt: { fontSize: 11, color: THEME.text, lineHeight: 18 },
   consentCard: { backgroundColor: THEME.card, borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   consentTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -350,13 +360,13 @@ const styles = StyleSheet.create({
   requiredTag: { backgroundColor: THEME.infoFade, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   requiredTagTxt: { fontSize: 8, color: THEME.info, fontWeight: '700' },
   gdprNote: { backgroundColor: THEME.infoFade, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: THEME.info + '44' },
-  gdprNoteTitle: { fontSize: 13, fontWeight: '800', color: THEME.info, marginBottom: 6 },
+  gdprNoteTitle: { fontSize: 13, fontWeight: '800', color: THEME.info },
   gdprNoteTxt: { fontSize: 10, color: THEME.text, lineHeight: 16 },
   auditRow: { backgroundColor: THEME.card, borderRadius: 12, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
   auditIconWrap: { width: 34, height: 34, borderRadius: 10, backgroundColor: THEME.bg, alignItems: 'center', justifyContent: 'center' },
   auditAction: { fontSize: 12, fontWeight: '700', color: THEME.text },
   auditDetail: { fontSize: 10, color: THEME.textSub, marginTop: 2, lineHeight: 15 },
   auditTime: { fontSize: 9, color: THEME.textLight, marginTop: 2 },
-  auditNote: { backgroundColor: THEME.darkCard, borderRadius: 10, padding: 12 },
-  auditNoteTxt: { fontSize: 10, color: THEME.textLight, lineHeight: 16 },
+  auditNote: { flexDirection: 'row', gap: 6, backgroundColor: THEME.darkCard, borderRadius: 10, padding: 12 },
+  auditNoteTxt: { flex: 1, fontSize: 10, color: THEME.textLight, lineHeight: 16 },
 });

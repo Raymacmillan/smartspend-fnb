@@ -3,11 +3,12 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import THEME from '../src/constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const LAYERS = [
   {
     num: '01',
-    icon: '📱',
+    icon: 'cellphone',
     title: 'Frontend Layer',
     subtitle: 'React Native + Expo',
     color: THEME.primary,
@@ -17,7 +18,7 @@ const LAYERS = [
   },
   {
     num: '02',
-    icon: '📊',
+    icon: 'chart-bar',
     title: 'Analytics Engine',
     subtitle: 'Health Scoring & Trend Analysis',
     color: THEME.info,
@@ -27,7 +28,7 @@ const LAYERS = [
   },
   {
     num: '03',
-    icon: '💡',
+    icon: 'lightbulb-on',
     title: 'Rules & Recommendation Engine',
     subtitle: 'Smart Advisory Insights',
     color: THEME.warning,
@@ -37,7 +38,7 @@ const LAYERS = [
   },
   {
     num: '04',
-    icon: '💾',
+    icon: 'database',
     title: 'Transaction Data Layer',
     subtitle: 'Data Minimisation by Design',
     color: THEME.purple,
@@ -47,7 +48,7 @@ const LAYERS = [
   },
   {
     num: '05',
-    icon: '🎯',
+    icon: 'bullseye-arrow',
     title: 'Goal Management Service',
     subtitle: 'Savings Target Tracking',
     color: THEME.success,
@@ -57,7 +58,7 @@ const LAYERS = [
   },
   {
     num: '06',
-    icon: '🔔',
+    icon: 'bell-outline',
     title: 'Notifications Engine',
     subtitle: 'Proactive Alerts & Warnings',
     color: THEME.danger,
@@ -67,7 +68,7 @@ const LAYERS = [
   },
   {
     num: '07',
-    icon: '🔗',
+    icon: 'link',
     title: 'API Integration Layer',
     subtitle: 'Secure External Connectivity',
     color: THEME.textSub,
@@ -78,12 +79,12 @@ const LAYERS = [
 ];
 
 const SECURITY_SUMMARY = [
-  { icon: '🔐', label: 'Encryption', value: 'AES-256 at rest · TLS 1.3 in transit' },
-  { icon: '👥', label: 'Access Control', value: 'RBAC — role-based, least-privilege' },
-  { icon: '🛡️', label: 'Data Minimisation', value: 'PII stripped at ingestion layer' },
-  { icon: '✅', label: 'Consent', value: 'Granular, per-feature consent model' },
-  { icon: '📋', label: 'Audit Trail', value: 'Append-only, 90-day immutable log' },
-  { icon: '🔒', label: 'Privacy-by-Design', value: 'Privacy embedded in architecture' },
+  { icon: 'lock', label: 'Encryption', value: 'AES-256 at rest · TLS 1.3 in transit' },
+  { icon: 'account-group', label: 'Access Control', value: 'RBAC — role-based, least-privilege' },
+  { icon: 'shield-check', label: 'Data Minimisation', value: 'PII stripped at ingestion layer' },
+  { icon: 'check-circle', label: 'Consent', value: 'Granular, per-feature consent model' },
+  { icon: 'clipboard-text', label: 'Audit Trail', value: 'Append-only, 90-day immutable log' },
+  { icon: 'shield-lock', label: 'Privacy-by-Design', value: 'Privacy embedded in architecture' },
 ];
 
 export default function Architecture() {
@@ -105,7 +106,10 @@ export default function Architecture() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         <View style={styles.archTypeCard}>
-          <Text style={styles.archTypeTitle}>🏗️ Layered (N-Tier) Architecture</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <MaterialCommunityIcons name="domain" size={18} color="#fff" />
+            <Text style={styles.archTypeTitle}>Layered (N-Tier) Architecture</Text>
+          </View>
           <Text style={styles.archTypeDesc}>
             SmartSpend uses a strict 7-layer architecture with clear separation of concerns.
             Each layer has a single responsibility and communicates only with adjacent layers.
@@ -127,7 +131,7 @@ export default function Architecture() {
               {i > 0 && (
                 <View style={styles.connector}>
                   <View style={styles.connectorLine} />
-                  <Text style={styles.connectorArrow}>↕</Text>
+                  <MaterialCommunityIcons name="swap-vertical" size={16} color={THEME.textLight} />
                   <View style={styles.connectorLine} />
                 </View>
               )}
@@ -141,13 +145,13 @@ export default function Architecture() {
                     <Text style={styles.layerNumTxt}>{layer.num}</Text>
                   </View>
                   <View style={styles.layerIconWrap}>
-                    <Text style={{ fontSize: 20 }}>{layer.icon}</Text>
+                    <MaterialCommunityIcons name={layer.icon} size={22} color={layer.color} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.layerTitle}>{layer.title}</Text>
                     <Text style={styles.layerSubtitle}>{layer.subtitle}</Text>
                   </View>
-                  <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={THEME.textLight} style={[styles.chevron, isOpen && styles.chevronOpen]} />
                 </View>
 
                 {isOpen && (
@@ -181,7 +185,7 @@ export default function Architecture() {
         <View style={styles.securityGrid}>
           {SECURITY_SUMMARY.map((s) => (
             <View key={s.label} style={styles.secCard}>
-              <Text style={styles.secIcon}>{s.icon}</Text>
+              <MaterialCommunityIcons name={s.icon} size={24} color={THEME.text} style={styles.secIcon} />
               <Text style={styles.secLabel}>{s.label}</Text>
               <Text style={styles.secValue}>{s.value}</Text>
             </View>
@@ -189,10 +193,15 @@ export default function Architecture() {
         </View>
 
         <View style={styles.dataFlowCard}>
-          <Text style={styles.dataFlowTitle}>📡 Data Flow</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <MaterialCommunityIcons name="broadcast" size={18} color="#fff" />
+            <Text style={styles.dataFlowTitle}>Data Flow</Text>
+          </View>
           <View style={styles.dataFlow}>
-            {['Bank API', '→', 'Data Layer', '→', 'Analytics', '→', 'UI', '→', 'User'].map((step, i) => (
-              <Text key={i} style={step === '→' ? styles.dataFlowArrow : styles.dataFlowStep}>{step}</Text>
+            {['Bank API', 'arrow-right', 'Data Layer', 'arrow-right', 'Analytics', 'arrow-right', 'UI', 'arrow-right', 'User'].map((step, i) => (
+              step === 'arrow-right' 
+                ? <MaterialCommunityIcons key={i} name="arrow-right" size={16} color={THEME.textLight} /> 
+                : <Text key={i} style={styles.dataFlowStep}>{step}</Text>
             ))}
           </View>
           <Text style={styles.dataFlowNote}>
@@ -252,7 +261,7 @@ const styles = StyleSheet.create({
   sub: { color: THEME.textLight, fontSize: 10, marginTop: 1 },
   scroll: { padding: 14, gap: 0 },
   archTypeCard: { backgroundColor: THEME.dark, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#ffffff10' },
-  archTypeTitle: { color: '#fff', fontSize: 14, fontWeight: '800', marginBottom: 8 },
+  archTypeTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   archTypeDesc: { color: THEME.textLight, fontSize: 11, lineHeight: 18, marginBottom: 12 },
   archProps: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   archProp: { backgroundColor: '#ffffff15', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
@@ -260,7 +269,6 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 9, color: THEME.textLight, fontWeight: '700', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase' },
   connector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 24, gap: 4 },
   connectorLine: { flex: 1, height: 1, backgroundColor: THEME.border },
-  connectorArrow: { fontSize: 12, color: THEME.textLight },
   layerCard: { backgroundColor: THEME.card, borderRadius: 12, borderLeftWidth: 4, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1, overflow: 'hidden' },
   layerTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   layerNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -268,7 +276,7 @@ const styles = StyleSheet.create({
   layerIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: THEME.bg, alignItems: 'center', justifyContent: 'center' },
   layerTitle: { fontSize: 13, fontWeight: '800', color: THEME.text },
   layerSubtitle: { fontSize: 9, color: THEME.textSub, marginTop: 1 },
-  chevron: { color: THEME.textLight, fontSize: 20, transform: [{ rotate: '0deg' }] },
+  chevron: { transform: [{ rotate: '0deg' }] },
   chevronOpen: { transform: [{ rotate: '90deg' }] },
   layerBody: { paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 0.5, borderTopColor: THEME.divider },
   layerDesc: { fontSize: 11, color: THEME.textSub, lineHeight: 17, marginTop: 10, marginBottom: 10 },
@@ -285,10 +293,9 @@ const styles = StyleSheet.create({
   secLabel: { fontSize: 11, fontWeight: '700', color: THEME.text, marginBottom: 2 },
   secValue: { fontSize: 9, color: THEME.textSub, lineHeight: 14 },
   dataFlowCard: { backgroundColor: THEME.darkCard, borderRadius: 14, padding: 14 },
-  dataFlowTitle: { color: '#fff', fontSize: 13, fontWeight: '800', marginBottom: 12 },
+  dataFlowTitle: { color: '#fff', fontSize: 13, fontWeight: '800' },
   dataFlow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginBottom: 10 },
   dataFlowStep: { backgroundColor: '#ffffff15', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, color: THEME.primary, fontSize: 10, fontWeight: '700' },
-  dataFlowArrow: { color: THEME.textLight, fontSize: 14 },
   dataFlowNote: { fontSize: 10, color: THEME.textLight, lineHeight: 16 },
   apiCard: { backgroundColor: THEME.card, borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   apiRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },

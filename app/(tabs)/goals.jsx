@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store';
 import { calculateGoal } from '../../src/services/goals/calculator';
 import { formatPulaShort } from '../../src/utils/currency';
 import THEME from '../../src/constants/theme';
+import { subscribeToUserGoals } from '../../src/services/firebase/db';
+import { doc, deleteDoc } from 'firebase/firestore';
+import { auth, db } from '../../src/services/firebase/config';
 
 export default function Goals() {
   const router = useRouter();
-  const { state, dispatch } = useStore();
-  const { goals } = state;
+  const [goals, setGoals] = useState([]);
+
+  useEffect(() => {
+    if (auth?.currentUser) return subscribeToUserGoals(setGoals);
+  }, []);
 
   const totalSaved = goals.reduce((s, g) => s + g.saved, 0);
   const totalTarget = goals.reduce((s, g) => s + g.target, 0);
@@ -54,7 +59,7 @@ export default function Goals() {
             <TouchableOpacity
               key={g.id}
               style={styles.goalCard}
-              onPress={() => router.push({ pathname: '/goal-detail', params: { id: g.id } })}
+              onPress={() => router.push({ pathname: '/smartspend/goal-detail', params: { id: g.id } })}
               activeOpacity={0.85}
             >
               <View style={styles.goalHeader}>
@@ -80,13 +85,13 @@ export default function Goals() {
               </View>
 
               <View style={styles.goalActions}>
-                <TouchableOpacity style={styles.goalBtn} onPress={() => router.push({ pathname: '/goal-detail', params: { id: g.id } })}>
+                <TouchableOpacity style={styles.goalBtn} onPress={() => router.push({ pathname: '/smartspend/goal-detail', params: { id: g.id } })}>
                   <Text style={styles.goalBtnTxt}>View</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.goalBtn, styles.goalBtnOutline]} onPress={() => router.push({ pathname: '/add-goal', params: { id: g.id } })}>
+                <TouchableOpacity style={[styles.goalBtn, styles.goalBtnOutline]} onPress={() => router.push({ pathname: '/smartspend/add-goal', params: { id: g.id } })}>
                   <Text style={styles.goalBtnOutlineTxt}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.goalBtn, styles.goalBtnDanger]} onPress={() => dispatch({ type: 'DELETE_GOAL', payload: g.id })}>
+                <TouchableOpacity style={[styles.goalBtn, styles.goalBtnDanger]} onPress={() => deleteDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(g.id)))}>
                   <Text style={styles.goalBtnDangerTxt}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -101,7 +106,7 @@ export default function Goals() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/add-goal')}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/smartspend/add-goal')}>
           <Text style={styles.addBtnTxt}>+ Add New Goal</Text>
         </TouchableOpacity>
         <View style={{ height: 16 }} />

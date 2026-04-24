@@ -1,0 +1,151 @@
+const SAMPLE_TRANSACTIONS = {
+  mar: {
+    label: 'March 2025',
+    total: 3847.50,
+    categories: [
+      {
+        key: 'groceries',
+        name: 'Groceries',
+        color: '#00c4b0',
+        emoji: '🛒',
+        amount: 1070,
+        prevAmount: 940,
+        transactions: [
+          { id: 't1', name: 'Choppies Broadhurst', date: 'Mar 4', amount: 650 },
+          { id: 't2', name: 'Spar Game City', date: 'Mar 16', amount: 420 },
+        ],
+      },
+      {
+        key: 'dining',
+        name: 'Dining & Food',
+        color: '#f5840c',
+        emoji: '🍔',
+        amount: 544,
+        prevAmount: 460,
+        transactions: [
+          { id: 't3', name: "Nando's Game City", date: 'Mar 3', amount: 89 },
+          { id: 't4', name: 'KFC Broadhurst', date: 'Mar 6', amount: 65 },
+          { id: 't5', name: 'Uber Eats', date: 'Mar 10', amount: 120 },
+          { id: 't6', name: 'Steers Riverwalk', date: 'Mar 14', amount: 55 },
+          { id: 't7', name: 'Uber Eats', date: 'Mar 18', amount: 140 },
+          { id: 't8', name: 'Debonairs Pizza', date: 'Mar 22', amount: 75 },
+        ],
+      },
+      {
+        key: 'atm',
+        name: 'ATM Cash',
+        color: '#1565c0',
+        emoji: '🏧',
+        amount: 1350,
+        prevAmount: 1000,
+        transactions: [
+          { id: 't9', name: 'FNB ATM Game City', date: 'Mar 2', amount: 200 },
+          { id: 't10', name: 'FNB ATM Riverwalk', date: 'Mar 7', amount: 300 },
+          { id: 't11', name: 'FNB ATM Airport', date: 'Mar 12', amount: 150 },
+          { id: 't12', name: 'FNB ATM Game City', date: 'Mar 19', amount: 500 },
+          { id: 't13', name: 'FNB ATM Riverwalk', date: 'Mar 25', amount: 200 },
+        ],
+      },
+      {
+        key: 'airtime',
+        name: 'Airtime',
+        color: '#7b1fa2',
+        emoji: '📱',
+        amount: 60,
+        prevAmount: 60,
+        transactions: [
+          { id: 't14', name: 'Mascom Airtime', date: 'Mar 1', amount: 10 },
+          { id: 't15', name: 'Mascom Airtime', date: 'Mar 5', amount: 10 },
+          { id: 't16', name: 'Mascom Airtime', date: 'Mar 9', amount: 10 },
+          { id: 't17', name: 'Mascom Airtime', date: 'Mar 13', amount: 10 },
+          { id: 't18', name: 'Mascom Airtime', date: 'Mar 17', amount: 10 },
+          { id: 't19', name: 'Mascom Airtime', date: 'Mar 21', amount: 10 },
+        ],
+      },
+      {
+        key: 'bankCharges',
+        name: 'Bank Charges',
+        color: '#e53935',
+        emoji: '🏦',
+        amount: 40.50,
+        prevAmount: 26.50,
+        transactions: [
+          { id: 't20', name: 'Monthly Service Fee', date: 'Mar 1', amount: 28.50 },
+          { id: 't21', name: 'Interbank Transfer Fee', date: 'Mar 15', amount: 12 },
+        ],
+      },
+    ],
+  },
+
+  feb: {
+    label: 'February 2025',
+    total: 2486.50,
+    categories: [
+      {
+        key: 'groceries',
+        name: 'Groceries',
+        color: '#00c4b0',
+        emoji: '🛒',
+        amount: 940,
+        prevAmount: 880,
+        transactions: [
+          { id: 'f1', name: 'Choppies Broadhurst', date: 'Feb 6', amount: 540 },
+          { id: 'f2', name: 'Spar Game City', date: 'Feb 20', amount: 400 },
+        ],
+      },
+      {
+        key: 'dining',
+        name: 'Dining & Food',
+        color: '#f5840c',
+        emoji: '🍔',
+        amount: 460,
+        prevAmount: 510,
+        transactions: [
+          { id: 'f3', name: "Nando's Game City", date: 'Feb 4', amount: 95 },
+          { id: 'f4', name: 'KFC Broadhurst', date: 'Feb 8', amount: 72 },
+          { id: 'f5', name: 'Uber Eats', date: 'Feb 15', amount: 138 },
+          { id: 'f6', name: 'Steers Riverwalk', date: 'Feb 22', amount: 155 },
+        ],
+      },
+      {
+        key: 'atm',
+        name: 'ATM Cash',
+        color: '#1565c0',
+        emoji: '🏧',
+        amount: 1000,
+        prevAmount: 1200,
+        transactions: [
+          { id: 'f7', name: 'FNB ATM Riverwalk', date: 'Feb 3', amount: 500 },
+          { id: 'f8', name: 'FNB ATM Game City', date: 'Feb 14', amount: 300 },
+          { id: 'f9', name: 'FNB ATM Airport', date: 'Feb 24', amount: 200 },
+        ],
+      },
+      {
+        key: 'airtime',
+        name: 'Airtime',
+        color: '#7b1fa2',
+        emoji: '📱',
+        amount: 60,
+        prevAmount: 80,
+        transactions: [
+          { id: 'f10', name: 'Mascom Airtime', date: 'Feb 5', amount: 20 },
+          { id: 'f11', name: 'Mascom Airtime', date: 'Feb 15', amount: 20 },
+          { id: 'f12', name: 'Mascom Airtime', date: 'Feb 25', amount: 20 },
+        ],
+      },
+      {
+        key: 'bankCharges',
+        name: 'Bank Charges',
+        color: '#e53935',
+        emoji: '🏦',
+        amount: 26.50,
+        prevAmount: 28,
+        transactions: [
+          { id: 'f13', name: 'Monthly Service Fee', date: 'Feb 1', amount: 26.50 },
+        ],
+      },
+    ],
+  },
+};
+
+export default SAMPLE_TRANSACTIONS;

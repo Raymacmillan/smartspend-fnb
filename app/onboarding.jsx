@@ -4,25 +4,78 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
 import THEME from '../src/constants/theme';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../src/services/firebase/config';
+import { doc, setDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Onboarding() {
   const router = useRouter();
   const { state, dispatch } = useStore();
   const [step, setStep] = useState(0);
   const [consent, setConsent] = useState({ analytics: true, personalization: true, dataSharing: false, marketing: false });
+  const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
 
   const toggleConsent = (key) => setConsent((c) => ({ ...c, [key]: !c[key] }));
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (pin.length < 4) { Alert.alert('PIN too short', 'Please enter a 4-digit PIN.'); return; }
     if (pin !== pinConfirm) { Alert.alert('PIN mismatch', 'PINs do not match. Try again.'); return; }
-    dispatch({ type: 'SET_CONSENT', payload: consent });
-    dispatch({ type: 'SET_ONBOARDED' });
-    dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-    dispatch({ type: 'ADD_AUDIT_LOG', payload: { id: Date.now(), action: 'Onboarding complete', detail: 'PIN set, consent recorded', time: 'Just now', icon: '✅' } });
-    router.replace('/(tabs)');
+    
+    try {
+      // Create a unique Firebase account bound to the user's PIN
+      const email = `user${pin}@smartspend.fnb`;
+      const password = `${pin}0000`; // Firebase requires 6+ chars
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        if (e.code.includes('user-not-found') || e.code.includes('invalid-credential')) {
+          await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          throw e;
+        }
+      }
+
+      // Save Name, PIN, and Consent securely to Firestore
+      await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        name: name.trim() || 'Demo User',
+        pin: pin,
+        consent: consent,
+        createdAt: Timestamp.now()
+      });
+
+      // Automatically inject 45 realistic mock transactions exclusively across Jan, Feb, Mar 2026
+      const start = new Date(2026, 0, 1).getTime(); // Jan 1st
+      const end = new Date(2026, 2, 31, 23, 59, 59).getTime(); // Mar 31st
+      
+      const templates = [
+        { desc: 'KFC GABORONE', min: 40, max: 150 },
+        { desc: 'CHECKERS AIRPORT JUNCTION', min: 300, max: 1200 },
+        { desc: 'ORANGE AIRTIME TOPUP', min: 10, max: 50 },
+        { desc: 'ATM WITHDRAWAL MAIN MALL', min: 100, max: 500 },
+        { desc: 'ENGEN TSHOLOFELO', min: 150, max: 400 },
+        { desc: 'BPC ELECTRICITY', min: 50, max: 200 }
+      ];
+      const txRef = collection(db, `users/${auth.currentUser.uid}/transactions`);
+      await Promise.all(Array.from({ length: 45 }).map(() => {
+        const t = templates[Math.floor(Math.random() * templates.length)];
+        const randomTime = start + Math.random() * (end - start);
+        const date = new Date(randomTime);
+        return addDoc(txRef, { description: t.desc, amount: Math.floor(Math.random() * (t.max - t.min)) + t.min, date: Timestamp.fromDate(date) });
+      }));
+
+      dispatch({ type: 'SET_PIN', payload: pin }); // Links the created PIN so Login works later!
+      dispatch({ type: 'SET_CONSENT', payload: consent });
+      dispatch({ type: 'SET_ONBOARDED' });
+      dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+      dispatch({ type: 'ADD_AUDIT_LOG', payload: { id: Date.now(), action: 'Onboarding complete', detail: 'PIN set, consent recorded', time: 'Just now', icon: '✅' } });
+      
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert('Setup Failed', error.message);
+    }
   };
 
   return (
@@ -37,7 +90,7 @@ export default function Onboarding() {
       {/* Step 0 — Welcome */}
       {step === 0 && (
         <View style={styles.stepWrap}>
-          <Text style={styles.emoji}>👋</Text>
+          <MaterialCommunityIcons name="hand-wave" size={48} color={THEME.primary} style={{ textAlign: 'center' }} />
           <Text style={styles.heading}>Welcome to SmartSpend</Text>
           <Text style={styles.body}>
             SmartSpend analyses your spending patterns to help you save money, track goals, and improve your financial health — all in one place.
@@ -58,7 +111,7 @@ export default function Onboarding() {
       {/* Step 1 — Consent */}
       {step === 1 && (
         <View style={styles.stepWrap}>
-          <Text style={styles.emoji}>🔒</Text>
+          <MaterialCommunityIcons name="shield-lock-outline" size={48} color={THEME.primary} style={{ textAlign: 'center' }} />
           <Text style={styles.heading}>Your data, your choice</Text>
           <Text style={styles.body}>
             We follow a <Text style={styles.bold}>privacy-by-design</Text> approach. Choose what you share. You can change these at any time in Settings.
@@ -105,13 +158,21 @@ export default function Onboarding() {
       {/* Step 2 — Create PIN */}
       {step === 2 && (
         <View style={styles.stepWrap}>
-          <Text style={styles.emoji}>🔐</Text>
-          <Text style={styles.heading}>Create your PIN</Text>
+          <MaterialCommunityIcons name="form-textbox-password" size={48} color={THEME.primary} style={{ textAlign: 'center' }} />
+          <Text style={styles.heading}>Secure Your Profile</Text>
           <Text style={styles.body}>
-            Set a 4-digit PIN to secure your SmartSpend account. This PIN is stored locally and never transmitted.
+            Enter your name and set a 4-digit PIN to secure your SmartSpend account.
           </Text>
 
           <View style={styles.pinWrap}>
+            <Text style={styles.pinLabel}>Your Name</Text>
+            <TextInput
+              style={styles.nameInput}
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. Pako"
+              placeholderTextColor={THEME.textLight}
+            />
             <Text style={styles.pinLabel}>Enter 4-digit PIN</Text>
             <TextInput
               style={styles.pinInput}
@@ -172,7 +233,6 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
   dotActive: { backgroundColor: THEME.primary, width: 24 },
   stepWrap: { flex: 1, justifyContent: 'center', gap: 16 },
-  emoji: { fontSize: 40, textAlign: 'center' },
   heading: { fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'center' },
   body: { fontSize: 13, color: '#aaa', textAlign: 'center', lineHeight: 20 },
   bold: { color: '#fff', fontWeight: '700' },
@@ -193,6 +253,10 @@ const styles = StyleSheet.create({
   privacyNote: { fontSize: 10, color: '#777', textAlign: 'center', lineHeight: 16 },
   pinWrap: { backgroundColor: THEME.darkCard, borderRadius: 14, padding: 16, gap: 8 },
   pinLabel: { fontSize: 11, color: '#888' },
+  nameInput: {
+    backgroundColor: THEME.dark, borderRadius: 10, borderWidth: 1, borderColor: '#333',
+    color: '#fff', fontSize: 16, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 12,
+  },
   pinInput: {
     backgroundColor: THEME.dark, borderRadius: 10, borderWidth: 1, borderColor: '#333',
     color: '#fff', fontSize: 22, textAlign: 'center', paddingVertical: 12, letterSpacing: 8,

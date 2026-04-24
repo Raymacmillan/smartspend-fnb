@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../src/store';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import THEME from '../src/constants/theme';
 
 export default function Splash() {
@@ -19,17 +20,17 @@ export default function Splash() {
     <SafeAreaView style={styles.container}>
       <View style={styles.top}>
         <View style={styles.logoWrap}>
-          <Text style={styles.logoIcon}>📊</Text>
+          <MaterialCommunityIcons name="chart-donut" size={42} color={THEME.primary} />
         </View>
         <Text style={styles.brand}>SmartSpend</Text>
         <Text style={styles.tagline}>Your personal financial intelligence</Text>
       </View>
 
       <View style={styles.mid}>
-        <Feature icon="🧠" text="AI-driven spending insights" />
-        <Feature icon="🎯" text="Goal-based savings tracking" />
-        <Feature icon="🔒" text="Bank-grade security & privacy" />
-        <Feature icon="📈" text="Financial health scoring" />
+        <Feature icon="brain" text="AI-driven spending insights" />
+        <Feature icon="bullseye-arrow" text="Goal-based savings tracking" />
+        <Feature icon="shield-lock-outline" text="Bank-grade security & privacy" />
+        <Feature icon="chart-line-variant" text="Financial health scoring" />
       </View>
 
       <View style={styles.bottom}>
@@ -50,7 +51,7 @@ export default function Splash() {
 function Feature({ icon, text }) {
   return (
     <View style={styles.feature}>
-      <Text style={styles.featureIcon}>{icon}</Text>
+      <MaterialCommunityIcons name={icon} size={24} color={THEME.textLight} style={styles.featureIcon} />
       <Text style={styles.featureTxt}>{text}</Text>
     </View>
   );
@@ -65,12 +66,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: THEME.primary,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
-  logoIcon: { fontSize: 36 },
   brand: { fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
   tagline: { fontSize: 14, color: THEME.textLight, marginTop: 6, textAlign: 'center' },
   mid: { gap: 14 },
   feature: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  featureIcon: { fontSize: 22, width: 32, textAlign: 'center' },
+  featureIcon: { width: 32, textAlign: 'center' },
   featureTxt: { fontSize: 14, color: '#ccc', flex: 1 },
   bottom: { gap: 12, alignItems: 'center' },
   cta: {

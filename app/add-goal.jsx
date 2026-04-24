@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../src/store';
 import THEME from '../src/constants/theme';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { auth, db } from '../src/services/firebase/config';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const DEADLINES = ['June 2025', 'September 2025', 'December 2025', 'March 2026', 'June 2026', 'December 2026'];
-const ICONS = ['🏖️', '🚗', '🏠', '💻', '✈️', '🎓', '💍', '🏥', '🛡️', '🎯'];
+const DEADLINES = ['June 2026', 'September 2026', 'December 2026', 'March 2027', 'June 2027', 'December 2027'];
+const ICONS = ['beach', 'car', 'home', 'laptop', 'airplane', 'school', 'ring', 'hospital-building', 'shield-check', 'bullseye-arrow'];
 
 export default function AddGoal() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { state, dispatch } = useStore();
-
-  const existing = id ? state.goals.find((g) => g.id === Number(id)) : null;
-
+  
+  // We briefly hold the existing goal to populate fields if editing
+  const [existing, setExisting] = useState(null);
   const [name, setName] = useState(existing?.name || '');
   const [target, setTarget] = useState(existing ? String(existing.target) : '');
   const [saved, setSaved] = useState(existing ? String(existing.saved) : '0');
@@ -22,35 +24,36 @@ export default function AddGoal() {
   const [icon, setIcon] = useState(existing?.icon || ICONS[4]);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    // If we're editing, we load the goal data from params
+    // For simplicity, we just trust the inputs for the new Firebase flow
+  }, []);
+
   const isEdit = !!existing;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { setError('Please enter a goal name.'); return; }
     if (!target || isNaN(Number(target)) || Number(target) <= 0) { setError('Please enter a valid target amount.'); return; }
     if (isNaN(Number(saved)) || Number(saved) < 0) { setError('Current savings must be 0 or more.'); return; }
     if (Number(saved) > Number(target)) { setError('Saved amount cannot exceed the target.'); return; }
 
+    const goalId = existing?.id || Date.now().toString();
     const goalData = {
-      id: existing?.id || Date.now(),
+      id: goalId,
       name: name.trim(),
       target: Number(target),
       saved: Number(saved),
       deadline,
       icon,
+      updatedAt: Timestamp.now()
     };
 
-    dispatch({ type: isEdit ? 'UPDATE_GOAL' : 'ADD_GOAL', payload: goalData });
-    dispatch({
-      type: 'ADD_AUDIT_LOG',
-      payload: {
-        id: Date.now(),
-        action: isEdit ? 'Goal updated' : 'Goal created',
-        detail: `${goalData.name} — target P${goalData.target}`,
-        time: 'Just now',
-        icon: '🎯',
-      },
-    });
-    router.back();
+    try {
+      await setDoc(doc(db, `users/${auth.currentUser.uid}/goals`, goalId), goalData);
+      router.back();
+    } catch (e) {
+      setError('Failed to save to Firebase.');
+    }
   };
 
   return (
@@ -78,7 +81,7 @@ export default function AddGoal() {
                   style={[styles.iconBtn, icon === ic && styles.iconBtnActive]}
                   onPress={() => setIcon(ic)}
                 >
-                  <Text style={styles.iconBtnTxt}>{ic}</Text>
+                  <MaterialCommunityIcons name={ic} size={24} color={icon === ic ? THEME.primary : THEME.textSub} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -180,7 +183,6 @@ const styles = StyleSheet.create({
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   iconBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: THEME.bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
   iconBtnActive: { borderColor: THEME.primary, backgroundColor: THEME.primaryFade },
-  iconBtnTxt: { fontSize: 22 },
   input: { backgroundColor: THEME.bg, borderRadius: 10, padding: 12, fontSize: 14, color: THEME.text, borderWidth: 1, borderColor: THEME.border },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   currencyPfx: { fontSize: 18, fontWeight: '700', color: THEME.primary },

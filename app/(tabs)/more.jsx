@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store';
 import THEME from '../../src/constants/theme';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../../src/services/firebase/config';
 
 export default function More() {
   const router = useRouter();
@@ -14,12 +16,24 @@ export default function More() {
     router.replace('/login');
   };
 
+  const [realName, setRealName] = useState(state.user.name);
+
+  useEffect(() => {
+    if (auth?.currentUser) {
+      getDoc(doc(db, 'users', auth.currentUser.uid)).then((snap) => {
+        if (snap.exists() && snap.data().name) {
+          setRealName(snap.data().name);
+        }
+      });
+    }
+  }, []);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View style={styles.avatar}><Text style={styles.avatarTxt}>{state.user.name[0]}</Text></View>
+        <View style={styles.avatar}><Text style={styles.avatarTxt}>{realName ? realName[0] : 'U'}</Text></View>
         <View>
-          <Text style={styles.name}>{state.user.name}</Text>
+          <Text style={styles.name}>{realName}</Text>
           <Text style={styles.account}>{state.user.account} · {state.user.tier}</Text>
         </View>
       </View>
@@ -28,8 +42,8 @@ export default function More() {
         <MenuSection title="Features">
           <MenuItem icon="📊" label="Analytics" sub="Spending trends & health score" onPress={() => router.push('/(tabs)/analytics')} />
           <MenuItem icon="🎯" label="Goals" sub="Savings targets & progress" onPress={() => router.push('/(tabs)/goals')} />
-          <MenuItem icon="💡" label="Recommendations" sub="Smart cost reduction tips" onPress={() => router.push('/recommendations')} />
-          <MenuItem icon="💳" label="Bank Charges" sub="Fee breakdown & savings" onPress={() => router.push('/charges')} />
+          <MenuItem icon="💡" label="Recommendations" sub="Smart cost reduction tips" onPress={() => router.push('/smartspend/recommendations')} />
+          <MenuItem icon="💳" label="Bank Charges" sub="Fee breakdown & savings" onPress={() => router.push('/smartspend/charges')} />
           <MenuItem icon="🔔" label="Notifications" sub="Alerts & spending warnings" onPress={() => router.push('/notifications')} />
         </MenuSection>
 
