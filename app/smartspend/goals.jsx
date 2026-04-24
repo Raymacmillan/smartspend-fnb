@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store';
 import GoalCard from '../../src/components/goals/GoalCard';
 import BottomNav from '../../src/components/common/BottomNav';
 import COLORS from '../../src/constants/colors';
+import { subscribeToUserGoals } from '../../src/services/firebase/db';
+import { auth, db } from '../../src/services/firebase/config';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 export default function Goals() {
   const router = useRouter();
-  const { state, dispatch } = useStore();
+  const [goals, setGoals] = useState([]);
+
+  useEffect(() => {
+    if (auth?.currentUser) return subscribeToUserGoals(setGoals);
+  }, []);
+
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(id)));
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -22,16 +32,16 @@ export default function Goals() {
       </View>
 
       <ScrollView>
-        {state.goals.length === 0 ? (
+        {goals.length === 0 ? (
           <Text style={styles.empty}>No goals yet.</Text>
         ) : (
-          state.goals.map((g) => (
+          goals.map((g) => (
             <GoalCard
               key={g.id}
               goal={g}
               onView={() => router.push({ pathname: '/smartspend/goal-detail', params: { id: g.id } })}
               onEdit={() => router.push({ pathname: '/smartspend/add-goal', params: { id: g.id } })}
-              onDelete={() => dispatch({ type: 'DELETE_GOAL', payload: g.id })}
+              onDelete={() => handleDelete(g.id)}
             />
           ))
         )}

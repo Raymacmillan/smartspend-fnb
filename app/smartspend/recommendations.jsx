@@ -19,7 +19,8 @@ export default function Recommendations() {
   const [targetMonth, setTargetMonth] = useState(initialDate);
   const [transactions, setTransactions] = useState([]);
   const [recs, setRecs] = useState([]);
-  const [loadingAI, setLoadingAI] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     if (!auth?.currentUser) return;
@@ -41,15 +42,19 @@ export default function Recommendations() {
 
   useEffect(() => {
     async function fetchRecommendations() {
-      setLoadingAI(true);
+      setIsAnalyzing(true);
       const processedData = processTransactions(transactions, targetMonth);
       const generated = await generateRecommendations(processedData?.categories || []);
       
       setRecs(generated || []);
-      setLoadingAI(false);
+      setIsAnalyzing(false);
+      setInitialLoad(false);
     }
     if (transactions.length > 0) fetchRecommendations();
-    else setLoadingAI(false);
+    else {
+      setIsAnalyzing(false);
+      setInitialLoad(false);
+    }
   }, [categoriesSignature]);
 
   const totalSaving = recs.reduce((sum, r) => sum + r.savingRaw, 0);
@@ -74,16 +79,20 @@ export default function Recommendations() {
     const randomItem = descriptions[Math.floor(Math.random() * descriptions.length)];
     const randomAmount = Math.floor(Math.random() * (450 - 10 + 1)) + 10;
 
+    // Strictly add to the CURRENT REAL-WORLD MONTH so hardcoded past months remain untouched
+    const simDate = new Date();
+
     const newTx = {
       description: randomItem.description,
       amount: randomAmount,
-      date: Timestamp.now(),
+      date: Timestamp.fromDate(simDate),
     };
 
     try {
       const transactionsRef = collection(db, `users/${auth.currentUser.uid}/transactions`);
       await addDoc(transactionsRef, newTx);
-      Alert.alert('Success', `Transaction Added: P${randomAmount} at ${randomItem.description}.\n\nNavigate out and back in to see the AI analyze it!`);
+      setTargetMonth(simDate); // Auto-navigate to the current month to see the update!
+      Alert.alert('Success', `Transaction Added: P${randomAmount} at ${randomItem.description}.\n\nMoved to the current month to analyze the live data!`);
     } catch (error) {
       console.error('Failed to add random transaction:', error);
       Alert.alert('Error', 'Failed to add transaction.');
@@ -101,7 +110,7 @@ export default function Recommendations() {
         </View>
       </View>
 
-      {loadingAI ? (
+      {initialLoad ? (
         <View style={styles.loaderCenter}>
           <ActivityIndicator size="large" color={THEME.primary} />
           <Text style={styles.loaderText}>SmartSpend is analyzing your spending...</Text>
@@ -109,6 +118,12 @@ export default function Recommendations() {
       ) : (
       <ScrollView>
         <View style={{ height: 10 }} />
+        {isAnalyzing && (
+          <View style={styles.refreshingBadge}>
+            <ActivityIndicator size="small" color={THEME.primary} />
+            <Text style={styles.refreshingText}>Recalculating AI Insights...</Text>
+          </View>
+        )}
         {recs.map((rec) => (
           <View key={rec.id} style={styles.card}>
             <View style={styles.cardHeader}>
@@ -167,6 +182,8 @@ const styles = StyleSheet.create({
   monthRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
   navBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffffff15', alignItems: 'center', justifyContent: 'center' },
   navBtnTxt: { color: '#fff', fontSize: 18, lineHeight: 22 },
+  refreshingBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 8, marginBottom: 10, backgroundColor: THEME.primary + '15', marginHorizontal: 12, borderRadius: 8 },
+  refreshingText: { fontSize: 12, color: THEME.primary, fontWeight: '700' },
   totalHint: {
     marginHorizontal: 12,
     backgroundColor: THEME.warningFade,

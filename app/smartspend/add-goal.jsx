@@ -1,118 +1,224 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useStore } from '../../src/store';
-import BottomNav from '../../src/components/common/BottomNav';
-import COLORS from '../../src/constants/colors';
-import { saveGoal, updateGoal } from '../../src/services/firebase/firestore'; 
-import { auth } from '../../src/services/firebase/config';
+import THEME from '../../src/constants/theme';
+import { auth, db } from '../../src/services/firebase/config';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+const DEADLINES = ['June 2026', 'September 2026', 'December 2026', 'March 2027', 'June 2027', 'December 2027'];
+const ICONS = ['beach', 'car', 'home', 'laptop', 'airplane', 'school', 'ring', 'hospital-building', 'shield-check', 'bullseye-arrow'];
 
 export default function AddGoal() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { state, dispatch } = useStore();
-  const editing = id ? state.goals.find((g) => g.id === parseInt(id)) : null;
 
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
-  const [saved, setSaved] = useState('');
-  const [deadline, setDeadline] = useState('');
+  const [saved, setSaved] = useState('0');
+  const [deadline, setDeadline] = useState(DEADLINES[0]);
+  const [icon, setIcon] = useState(ICONS[4]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(!!id);
 
   useEffect(() => {
-    if (editing) {
-      setName(editing.name);
-      setTarget(String(editing.target));
-      setSaved(String(editing.saved));
-      setDeadline(editing.deadline);
+    if (id && auth.currentUser) {
+      getDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(id))).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setName(data.name || data.title || '');
+          setTarget(String(data.target || ''));
+          setSaved(String(data.saved || '0'));
+          setDeadline(data.deadline || DEADLINES[0]);
+          setIcon(data.icon || ICONS[4]);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
     }
-  }, [editing?.id]);
+  }, [id]);
+
+  const isEdit = !!id;
 
   const handleSave = async () => {
-    if (!name || !target || !deadline) {
-      Alert.alert('Missing fields', 'Please fill in all fields.');
-      return;
+    if (!name.trim()) { setError('Please enter a goal name.'); return; }
+    if (!target || isNaN(Number(target)) || Number(target) <= 0) { setError('Please enter a valid target amount.'); return; }
+    if (isNaN(Number(saved)) || Number(saved) < 0) { setError('Current savings must be 0 or more.'); return; }
+    if (Number(saved) > Number(target)) { setError('Saved amount cannot exceed the target.'); return; }
+
+    const goalId = id || Date.now().toString();
+
+    const goalData = {
+      id: goalId,
+      name: name.trim(),
+      title: name.trim(), // Support dual schema mappings
+      target: Number(target),
+      saved: Number(saved),
+      current: Number(saved), // Support dual schema mappings
+      deadline,
+      icon,
+      color: THEME.primary,
+      updatedAt: Timestamp.now()
+    };
+
+    try {
+      await setDoc(doc(db, `users/${auth.currentUser.uid}/goals`, String(goalId)), goalData);
+      router.back();
+    } catch (e) {
+      setError('Failed to save goal.');
     }
-   const goalData = {
-    name: name.trim(),
-    target: parseFloat(target),
-    saved: parseFloat(saved) || 0,
-    deadline: deadline.trim(),
-    userId: auth.currentUser.uid,
   };
-  try {
-    if (editing) {
-      await updateGoal(auth.currentUser.uid, editing.id, goalData);
-    } else {
-      await saveGoal(auth.currentUser.uid, goalData);
-    }
-    router.push('/smartspend/goals');
-  } catch (error) {
-    Alert.alert('Error', 'Could not save goal. Try again.');
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={THEME.primary} />
+      </SafeAreaView>
+    );
   }
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Goals</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+          <Text style={styles.backTxt}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{editing ? 'Edit Goal' : 'Add New Goal'}</Text>
-        <Text style={styles.subtitle}>Fill in your savings target</Text>
+        <Text style={styles.title}>{isEdit ? 'Edit Goal' : 'New Savings Goal'}</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.saveBtn}>
+          <Text style={styles.saveBtnTxt}>Save</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.form}>
-        <Text style={styles.label}>Goal name</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. China Trip" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        <Text style={styles.label}>Target amount (P)</Text>
-        <TextInput style={styles.input} value={target} onChangeText={setTarget} placeholder="e.g. 10000" keyboardType="numeric" />
+          {/* Icon picker */}
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>Goal Icon</Text>
+            <View style={styles.iconRow}>
+              {ICONS.map((ic) => (
+                <TouchableOpacity
+                  key={ic}
+                  style={[styles.iconBtn, icon === ic && styles.iconBtnActive]}
+                  onPress={() => setIcon(ic)}
+                >
+                  <MaterialCommunityIcons name={ic} size={24} color={icon === ic ? THEME.primary : THEME.textSub} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-        <Text style={styles.label}>Amount already saved (P)</Text>
-        <TextInput style={styles.input} value={saved} onChangeText={setSaved} placeholder="e.g. 1800" keyboardType="numeric" />
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>Goal Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. China Trip, Emergency Fund"
+              placeholderTextColor={THEME.textLight}
+              value={name}
+              onChangeText={(v) => { setName(v); setError(''); }}
+              maxLength={40}
+            />
+          </View>
 
-        <Text style={styles.label}>Deadline (e.g. December 2026)</Text>
-        <TextInput style={styles.input} value={deadline} onChangeText={setDeadline} placeholder="e.g. December 2026" />
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>Target Amount (BWP) *</Text>
+            <View style={styles.inputRow}>
+              <Text style={styles.currencyPfx}>P</Text>
+              <TextInput
+                style={[styles.input, styles.inputFlex]}
+                placeholder="10000"
+                placeholderTextColor={THEME.textLight}
+                keyboardType="numeric"
+                value={target}
+                onChangeText={(v) => { setTarget(v); setError(''); }}
+              />
+            </View>
+          </View>
 
-        <TouchableOpacity style={styles.cta} onPress={handleSave}>
-          <Text style={styles.ctaTxt}>Save Goal</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.cta, styles.ctaDark]} onPress={() => router.push('/smartspend/goals')}>
-          <Text style={styles.ctaTxt}>Cancel</Text>
-        </TouchableOpacity>
-      </ScrollView>
-      <BottomNav />
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>Already Saved (BWP)</Text>
+            <View style={styles.inputRow}>
+              <Text style={styles.currencyPfx}>P</Text>
+              <TextInput
+                style={[styles.input, styles.inputFlex]}
+                placeholder="0"
+                placeholderTextColor={THEME.textLight}
+                keyboardType="numeric"
+                value={saved}
+                onChangeText={(v) => { setSaved(v); setError(''); }}
+              />
+            </View>
+            {target && saved && Number(target) > 0 && (
+              <View style={styles.progWrap}>
+                <View style={styles.progTrack}>
+                  <View style={[styles.progFill, { width: `${Math.min(100, Math.round((Number(saved) / Number(target)) * 100))}%` }]} />
+                </View>
+                <Text style={styles.progTxt}>{Math.min(100, Math.round((Number(saved) / Number(target)) * 100))}% complete</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.fieldLabel}>Target Deadline</Text>
+            <View style={styles.deadlineGrid}>
+              {DEADLINES.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.deadlineBtn, deadline === d && styles.deadlineBtnActive]}
+                  onPress={() => setDeadline(d)}
+                >
+                  <Text style={[styles.deadlineBtnTxt, deadline === d && styles.deadlineBtnTxtActive]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorTxt}>⚠️ {error}</Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSave}>
+            <Text style={styles.primaryBtnTxt}>{isEdit ? '✓ Update Goal' : '+ Create Goal'}</Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
-  header: { backgroundColor: COLORS.black, padding: 14, paddingBottom: 12 },
-  back: { color: COLORS.teal, fontSize: 11, marginBottom: 5 },
-  title: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  subtitle: { color: '#aaa', fontSize: 10, marginTop: 2 },
-  form: { padding: 14 },
-  label: { fontSize: 10, color: COLORS.muted, marginBottom: 4 },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    fontSize: 13,
-    color: COLORS.text,
-    marginBottom: 12,
-  },
-  cta: {
-    padding: 12,
-    backgroundColor: COLORS.teal,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  ctaDark: { backgroundColor: COLORS.black },
-  ctaTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: THEME.bg },
+  header: { backgroundColor: THEME.dark, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  back: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  backTxt: { color: '#fff', fontSize: 26, lineHeight: 30 },
+  title: { flex: 1, color: '#fff', fontSize: 17, fontWeight: '900' },
+  saveBtn: { backgroundColor: THEME.primary, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
+  saveBtnTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  scroll: { padding: 14, gap: 12 },
+  card: { backgroundColor: THEME.card, borderRadius: 14, padding: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: THEME.textSub, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  iconBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: THEME.bg, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'transparent' },
+  iconBtnActive: { borderColor: THEME.primary, backgroundColor: THEME.primaryFade },
+  input: { backgroundColor: THEME.bg, borderRadius: 10, padding: 12, fontSize: 14, color: THEME.text, borderWidth: 1, borderColor: THEME.border },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  currencyPfx: { fontSize: 18, fontWeight: '700', color: THEME.primary },
+  inputFlex: { flex: 1 },
+  progWrap: { marginTop: 8, gap: 4 },
+  progTrack: { height: 6, backgroundColor: THEME.border, borderRadius: 3 },
+  progFill: { height: 6, backgroundColor: THEME.primary, borderRadius: 3 },
+  progTxt: { fontSize: 10, color: THEME.textSub },
+  deadlineGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  deadlineBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: THEME.bg, borderWidth: 1, borderColor: THEME.border },
+  deadlineBtnActive: { backgroundColor: THEME.primaryFade, borderColor: THEME.primary },
+  deadlineBtnTxt: { fontSize: 11, color: THEME.textSub, fontWeight: '600' },
+  deadlineBtnTxtActive: { color: THEME.primary },
+  errorBox: { backgroundColor: THEME.dangerFade, borderRadius: 10, padding: 12 },
+  errorTxt: { fontSize: 12, color: THEME.danger, fontWeight: '600' },
+  primaryBtn: { backgroundColor: THEME.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', shadowColor: THEME.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 3 },
+  primaryBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });

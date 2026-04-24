@@ -12,7 +12,7 @@ export default function Splash() {
 
   const handleStart = () => {
     if (!state.hasOnboarded) router.push('/onboarding');
-    else if (!state.isAuthenticated) router.push('/login');
+    else if (!state.isAuthenticated) router.push('/(auth)/login');
     else router.replace('/(tabs)');
   };
 
@@ -37,7 +37,7 @@ export default function Splash() {
         <TouchableOpacity style={styles.cta} onPress={handleStart} activeOpacity={0.85}>
           <Text style={styles.ctaTxt}>Get Started</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/login')} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.push('/(auth)/login')} activeOpacity={0.7}>
           <Text style={styles.loginLink}>Already have an account? Log in</Text>
         </TouchableOpacity>
         <Text style={styles.disclaimer}>
