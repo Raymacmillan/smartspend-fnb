@@ -1,0 +1,18 @@
+{
+  "cli": { "version": ">= 5.9.0" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "your_key",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "smartspend-fnb-a4e7f.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "smartspend-fnb-a4e7f",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "smartspend-fnb-a4e7f.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "851359261681",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "your_app_id",
+        "EXPO_PUBLIC_GROQ_API_KEY": "your_groq_key"
+      }
+    }
+  }
+}
