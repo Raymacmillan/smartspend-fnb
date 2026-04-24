@@ -25,10 +25,10 @@ export const generateRecommendations = async (categories) => {
     Data: ${JSON.stringify(enrichedData)}
 
     Respond ONLY with a valid JSON object containing a "recommendations" array.
-    CRITICAL: The JSON must be completely valid. Do NOT include any comments (like //) or math expressions (like 140 * 0.4). The "savingRaw" value MUST be a plain calculated number.
+    CRITICAL: The JSON must be completely valid. Do NOT include any comments or math expressions. The "savingRaw" value MUST be a plain integer.
     {
       "recommendations": [{
-        "id": "unique-string",
+        "id": "rec-123",
         "icon": "lightbulb-on",
         "title": "Actionable Title",
         "subtitle": "Context from data",
