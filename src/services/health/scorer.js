@@ -1,83 +1,98 @@
-// Financial health scorer — 0 to 100
-// Factors: saving consistency (25), charge efficiency (20),
-//          discretionary spend (20), goal progress (20), spend consistency (15)
+// Standardised Financial Health Scorer — 0 to 100
+// 4-Pillar System: Spending Control (30), Goal Progress (30),
+//                  Fee Efficiency (20), Trend Stability (20)
 
-export const calculateHealthScore = (data) => {
-  const { categories, total, goals, prevTotal } = data;
-
-  const bankCharges = categories.find((c) => c.key === 'bankCharges');
-  const atm = categories.find((c) => c.key === 'atm');
-  const dining = categories.find((c) => c.key === 'dining');
-
-  // 1. Saving consistency (25pts) — lower ATM usage = better
-  const atmCount = atm ? atm.transactions.length : 0;
-  const savingScore = atmCount <= 2 ? 25 : atmCount <= 4 ? 18 : 10;
-
-  // 2. Charge efficiency (20pts) — lower charges relative to total = better
-  const chargeRatio = bankCharges ? (bankCharges.amount / total) : 0;
-  const chargeScore = chargeRatio < 0.01 ? 20 : chargeRatio < 0.02 ? 14 : 7;
-
-  // 3. Discretionary spend ratio (20pts) — dining as % of total
-  const diningRatio = dining ? (dining.amount / total) : 0;
-  const discretionaryScore = diningRatio < 0.10 ? 20 : diningRatio < 0.15 ? 13 : 8;
-
-  // 4. Goal progress (20pts) — based on average % completion across all goals
-  let goalScore = 5;
-  if (goals && goals.length > 0) {
-    const avgCompletion = goals.reduce((sum, g) => sum + Math.min(100, (g.saved / g.target) * 100), 0) / goals.length;
-    if (avgCompletion >= 50) goalScore = 20;
-    else if (avgCompletion >= 25) goalScore = 15;
-    else if (avgCompletion >= 10) goalScore = 10;
-    else goalScore = 6;
+export const calculateHealthScore = ({ categories = [], total = 0, goals = [], prevTotal = 0 } = {}) => {
+  if (total === 0 && prevTotal === 0) {
+    return {
+      total: 100,
+      breakdown: {
+        spending: { label: 'Spending Control', score: 30, max: 30 },
+        goals: { label: 'Goal Progress', score: 30, max: 30 },
+        fees: { label: 'Fee Efficiency', score: 20, max: 20 },
+        trend: { label: 'Trend Stability', score: 20, max: 20 }
+      },
+      helped: ['Clean slate!'],
+      hurt: [],
+      topAction: 'Start transacting to build your health score.'
+    };
   }
 
-  // 5. Spend consistency (15pts) — compare to previous month
-  const spendDiff = prevTotal ? Math.abs((total - prevTotal) / prevTotal) : 0;
-  const consistencyScore = spendDiff < 0.05 ? 15 : spendDiff < 0.15 ? 10 : 6;
+  // 1. Spending Control (30 pts)
+  // Evaluates Discretionary vs Essential spend
+  const discretionarySpend = categories
+    .filter(c => ['dining', 'airtime', 'other'].includes(c.key))
+    .reduce((sum, c) => sum + c.amount, 0);
 
-  const totalScore = savingScore + chargeScore + discretionaryScore + goalScore + consistencyScore;
+  const discRatio = total > 0 ? discretionarySpend / total : 0;
+  let spendingScore = 30;
+  if (discRatio > 0.5) spendingScore = 10;
+  else if (discRatio > 0.3) spendingScore = 20;
 
-  // Data-driven helped / hurt tags
+  // 2. Goal Progress (30 pts)
+  // Evaluates if the user is actively saving and making progress
+  let goalScore = 30;
+  if (goals && goals.length > 0) {
+    const avgCompletion = goals.reduce((sum, g) => sum + Math.min(100, (g.saved / g.target) * 100), 0) / goals.length;
+    if (avgCompletion >= 50) goalScore = 30;
+    else if (avgCompletion >= 20) goalScore = 20;
+    else goalScore = 10;
+  } else {
+    goalScore = 0; // Penalty for not having any financial goals set
+  }
+
+  // 3. Fee Efficiency (20 pts)
+  // Evaluates leakage on avoidable bank charges
+  const fees = categories
+    .filter(c => ['bankCharges'].includes(c.key))
+    .reduce((sum, c) => sum + c.amount, 0);
+  
+  const feeRatio = total > 0 ? fees / total : 0;
+  let feeScore = 20;
+  if (feeRatio > 0.05) feeScore = 0;
+  else if (feeRatio > 0.015) feeScore = 10;
+
+  // 4. Trend Stability (20 pts)
+  // Evaluates month-on-month spending control
+  let trendScore = 20;
+  if (prevTotal > 0 && total > 0) {
+    const increase = (total - prevTotal) / prevTotal;
+    if (increase > 0.2) trendScore = 0;
+    else if (increase > 0.05) trendScore = 10;
+  }
+
+  // Calculate final score out of 100
+  const totalScore = spendingScore + goalScore + feeScore + trendScore;
+
+  // Generate dynamic Insights
   const helped = [];
   const hurt = [];
 
-  if (savingScore >= 18) helped.push('Low ATM usage');
-  else hurt.push(`Frequent ATM use (${atmCount} visits)`);
+  if (spendingScore === 30) helped.push('Low discretionary spend');
+  else hurt.push('High discretionary spend');
 
-  if (chargeScore >= 14) helped.push('Low bank charge ratio');
-  else hurt.push('High bank charges vs spending');
+  if (feeScore === 20) helped.push('Minimal bank fees');
+  else hurt.push('High ATM & bank fees');
 
-  if (discretionaryScore >= 13) helped.push('Controlled dining spend');
-  else hurt.push(`High dining spend (${Math.round(diningRatio * 100)}% of total)`);
+  if (trendScore === 20) helped.push('Spending kept stable');
+  else hurt.push('Spending increased vs last month');
 
-  if (goalScore >= 15) helped.push('Strong savings goal progress');
-  else hurt.push('Savings goals need more contributions');
+  if (goals && goals.length > 0 && goalScore >= 20) helped.push('On track with goals');
+  else if (!goals || goals.length === 0) hurt.push('No active savings goals');
 
-  if (consistencyScore >= 10) helped.push('Consistent monthly spending');
-  else hurt.push('Spend jumped vs last month');
-
-  if (helped.length === 0) helped.push('Expenses are being tracked');
-  if (hurt.length === 0) hurt.push('Minor areas for improvement');
-
-  // Data-driven top action — target the worst-scoring factor
-  const factors = [
-    { score: savingScore, max: 25, action: `Reduce ATM visits from ${atmCount} to 2 to improve saving consistency` },
-    { score: chargeScore, max: 20, action: 'Use FNB-to-FNB transfers — they are free and cut interbank fees' },
-    { score: discretionaryScore, max: 20, action: 'Meal prep 3 days/week to cut dining spend by 20%' },
-    { score: goalScore, max: 20, action: 'Set up a monthly auto-transfer to your savings goals' },
-    { score: consistencyScore, max: 15, action: 'Keep spending within 5% of last month\'s budget' },
-  ];
-  const worst = factors.reduce((w, f) => (f.score / f.max) < (w.score / w.max) ? f : w);
-  const topAction = `${worst.action} — could add up to +${worst.max - worst.score} points next month`;
+  // Determine the highest priority action for the user
+  let topAction = 'Keep up the great financial habits!';
+  if (feeScore < 20) topAction = 'Switch to app transfers and card swipes to reduce ATM and bank fees.';
+  else if (spendingScore < 30) topAction = 'Cut back on dining and takeaways to boost your score.';
+  else if (!goals || goals.length === 0) topAction = 'Set your first savings goal to instantly improve your score.';
 
   return {
     total: totalScore,
     breakdown: {
-      savingConsistency: { score: savingScore, max: 25, label: 'Saving consistency' },
-      chargeEfficiency: { score: chargeScore, max: 20, label: 'Charge efficiency' },
-      discretionarySpend: { score: discretionaryScore, max: 20, label: 'Discretionary spend' },
-      goalProgress: { score: goalScore, max: 20, label: 'Goal progress' },
-      spendConsistency: { score: consistencyScore, max: 15, label: 'Spend consistency' },
+      spending: { score: spendingScore, max: 30, label: 'Spending Control' },
+      goals: { score: goalScore, max: 30, label: 'Goal Progress' },
+      fees: { score: feeScore, max: 20, label: 'Fee Efficiency' },
+      trend: { score: trendScore, max: 20, label: 'Trend Stability' }
     },
     helped,
     hurt,
